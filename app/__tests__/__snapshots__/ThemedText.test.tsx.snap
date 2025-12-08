@@ -1,0 +1,19 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ThemedText applies accent color correctly 1`] = `null`;
+
+exports[`ThemedText applies custom styles correctly 1`] = `null`;
+
+exports[`ThemedText applies error color correctly 1`] = `null`;
+
+exports[`ThemedText applies secondary color correctly 1`] = `null`;
+
+exports[`ThemedText passes additional props to underlying Text component 1`] = `null`;
+
+exports[`ThemedText renders correctly with default props 1`] = `null`;
+
+exports[`ThemedText renders h1 variant correctly 1`] = `null`;
+
+exports[`ThemedText renders h2 variant correctly 1`] = `null`;
+
+exports[`ThemedText renders small variant correctly 1`] = `null`;
