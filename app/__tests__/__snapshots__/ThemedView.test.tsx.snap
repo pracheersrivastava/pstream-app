@@ -1,0 +1,11 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ThemedView applies custom styles correctly 1`] = `null`;
+
+exports[`ThemedView renders correctly with card variant 1`] = `null`;
+
+exports[`ThemedView renders correctly with default background variant 1`] = `null`;
+
+exports[`ThemedView renders correctly with surface variant 1`] = `null`;
+
+exports[`ThemedView renders without children 1`] = `null`;
