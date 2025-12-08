@@ -108,11 +108,9 @@ const PlayerScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.playPauseButton,
+                  styles.playPauseButtonSize,
                   {
                     backgroundColor: colors.PRIMARY,
-                    borderRadius: 40,
-                    width: 80,
-                    height: 80,
                     marginHorizontal: spacing.xl,
                   },
                 ]}
@@ -171,9 +169,9 @@ const PlayerScreen: React.FC = () => {
                   <View
                     style={[
                       styles.progressThumb,
+                      styles.progressThumbRound,
                       {
                         backgroundColor: colors.TEXT_PRIMARY,
-                        borderRadius: 8,
                         left: `${progress}%`,
                       },
                     ]}
@@ -281,6 +279,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  playPauseButtonSize: {
+    borderRadius: 40,
+    width: 80,
+    height: 80,
+  },
   bottomBar: {},
   titleSection: {},
   progressContainer: {
@@ -301,6 +304,9 @@ const styles = StyleSheet.create({
     height: 16,
     top: -6,
     marginLeft: -8,
+  },
+  progressThumbRound: {
+    borderRadius: 8,
   },
   additionalControls: {
     flexDirection: 'row',

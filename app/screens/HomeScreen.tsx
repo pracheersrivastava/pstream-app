@@ -8,7 +8,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -102,10 +101,9 @@ const SecondaryButton: React.FC<{
     <TouchableOpacity
       style={[
         styles.secondaryButton,
+        styles.secondaryButtonBase,
         {
-          backgroundColor: 'transparent',
           borderColor: colors.MUTED,
-          borderWidth: 1,
           borderRadius: radii.sm,
           paddingVertical: spacing.sm,
           paddingHorizontal: spacing.md,
@@ -236,16 +234,16 @@ const HomeScreen: React.FC = () => {
                       marginTop: spacing.sm,
                     },
                   ]}>
-                  <View
-                    style={[
-                      styles.progressFill,
-                      {
-                        backgroundColor: colors.PRIMARY,
-                        borderRadius: radii.sm,
-                        width: '65%',
-                      },
-                    ]}
-                  />
+                <View
+                  style={[
+                    styles.progressFill,
+                    styles.progressFillWidth,
+                    {
+                      backgroundColor: colors.PRIMARY,
+                      borderRadius: radii.sm,
+                    },
+                  ]}
+                />
                 </View>
               </View>
             </View>
@@ -304,6 +302,10 @@ const styles = StyleSheet.create({
   },
   primaryButton: {},
   secondaryButton: {},
+  secondaryButtonBase: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+  },
   buttonText: {
     fontWeight: '600',
   },
@@ -335,6 +337,9 @@ const styles = StyleSheet.create({
   },
   progressFill: {
     height: '100%',
+  },
+  progressFillWidth: {
+    width: '65%',
   },
   categoriesGrid: {
     flexDirection: 'row',

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import ReactTestRenderer from 'react-test-renderer';
+import ReactTestRenderer, { act } from 'react-test-renderer';
 import { Text } from 'react-native';
 import { ThemedView } from '../components/ThemedView';
 import { ThemeProvider } from '../theme/ThemeProvider';
@@ -17,61 +17,76 @@ const TestWrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 );
 
 describe('ThemedView', () => {
-  it('renders correctly with default background variant', () => {
-    const tree = ReactTestRenderer.create(
-      <TestWrapper>
-        <ThemedView>
-          <Text>Content</Text>
-        </ThemedView>
-      </TestWrapper>,
-    ).toJSON();
+  it('renders correctly with default background variant', async () => {
+    let tree: ReturnType<ReactTestRenderer.ReactTestRenderer['toJSON']> = null;
+    await act(async () => {
+      tree = ReactTestRenderer.create(
+        <TestWrapper>
+          <ThemedView>
+            <Text>Content</Text>
+          </ThemedView>
+        </TestWrapper>,
+      ).toJSON();
+    });
 
     expect(tree).toMatchSnapshot();
   });
 
-  it('renders correctly with surface variant', () => {
-    const tree = ReactTestRenderer.create(
-      <TestWrapper>
-        <ThemedView variant="surface">
-          <Text>Surface Content</Text>
-        </ThemedView>
-      </TestWrapper>,
-    ).toJSON();
+  it('renders correctly with surface variant', async () => {
+    let tree: ReturnType<ReactTestRenderer.ReactTestRenderer['toJSON']> = null;
+    await act(async () => {
+      tree = ReactTestRenderer.create(
+        <TestWrapper>
+          <ThemedView variant="surface">
+            <Text>Surface Content</Text>
+          </ThemedView>
+        </TestWrapper>,
+      ).toJSON();
+    });
 
     expect(tree).toMatchSnapshot();
   });
 
-  it('renders correctly with card variant', () => {
-    const tree = ReactTestRenderer.create(
-      <TestWrapper>
-        <ThemedView variant="card">
-          <Text>Card Content</Text>
-        </ThemedView>
-      </TestWrapper>,
-    ).toJSON();
+  it('renders correctly with card variant', async () => {
+    let tree: ReturnType<ReactTestRenderer.ReactTestRenderer['toJSON']> = null;
+    await act(async () => {
+      tree = ReactTestRenderer.create(
+        <TestWrapper>
+          <ThemedView variant="card">
+            <Text>Card Content</Text>
+          </ThemedView>
+        </TestWrapper>,
+      ).toJSON();
+    });
 
     expect(tree).toMatchSnapshot();
   });
 
-  it('applies custom styles correctly', () => {
+  it('applies custom styles correctly', async () => {
     const customStyle = { padding: 20, margin: 10 };
-    const tree = ReactTestRenderer.create(
-      <TestWrapper>
-        <ThemedView style={customStyle}>
-          <Text>Styled Content</Text>
-        </ThemedView>
-      </TestWrapper>,
-    ).toJSON();
+    let tree: ReturnType<ReactTestRenderer.ReactTestRenderer['toJSON']> = null;
+    await act(async () => {
+      tree = ReactTestRenderer.create(
+        <TestWrapper>
+          <ThemedView style={customStyle}>
+            <Text>Styled Content</Text>
+          </ThemedView>
+        </TestWrapper>,
+      ).toJSON();
+    });
 
     expect(tree).toMatchSnapshot();
   });
 
-  it('renders without children', () => {
-    const tree = ReactTestRenderer.create(
-      <TestWrapper>
-        <ThemedView />
-      </TestWrapper>,
-    ).toJSON();
+  it('renders without children', async () => {
+    let tree: ReturnType<ReactTestRenderer.ReactTestRenderer['toJSON']> = null;
+    await act(async () => {
+      tree = ReactTestRenderer.create(
+        <TestWrapper>
+          <ThemedView />
+        </TestWrapper>,
+      ).toJSON();
+    });
 
     expect(tree).toMatchSnapshot();
   });

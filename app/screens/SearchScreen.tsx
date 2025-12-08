@@ -165,11 +165,11 @@ const SearchScreen: React.FC = () => {
                 key={category.name}
                 style={[
                   styles.categoryCard,
+                  styles.categoryCardBorder,
                   {
                     backgroundColor: colors.CARD,
                     borderRadius: radii.md,
                     padding: spacing.md,
-                    borderLeftWidth: 4,
                     borderLeftColor: category.color,
                   },
                 ]}
@@ -231,6 +231,9 @@ const styles = StyleSheet.create({
   categoryCard: {
     width: '48%',
     marginBottom: 12,
+  },
+  categoryCardBorder: {
+    borderLeftWidth: 4,
   },
 });
 

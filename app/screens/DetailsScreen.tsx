@@ -31,9 +31,9 @@ const DetailsScreen: React.FC = () => {
         <View
           style={[
             styles.heroImage,
+            styles.heroImageHeight,
             {
               backgroundColor: colors.SURFACE,
-              height: 250,
             },
           ]}>
           {/* Gradient overlay would go here */}
@@ -72,11 +72,11 @@ const DetailsScreen: React.FC = () => {
             <View
               style={[
                 styles.ratingBadge,
+                styles.ratingBadgeBase,
                 {
                   backgroundColor: colors.SUCCESS,
                   borderRadius: radii.sm,
                   paddingHorizontal: spacing.sm,
-                  paddingVertical: 2,
                 },
               ]}>
               <ThemedText variant="small">8.5</ThemedText>
@@ -88,11 +88,11 @@ const DetailsScreen: React.FC = () => {
             <TouchableOpacity
               style={[
                 styles.playButton,
+                styles.playButtonFlex,
                 {
                   backgroundColor: colors.PRIMARY,
                   borderRadius: radii.md,
                   paddingVertical: spacing.md,
-                  flex: 1,
                   marginRight: spacing.sm,
                 },
               ]}
@@ -186,9 +186,9 @@ const DetailsScreen: React.FC = () => {
                   <View
                     style={[
                       styles.castAvatar,
+                      styles.castAvatarRound,
                       {
                         backgroundColor: colors.CARD,
-                        borderRadius: 30,
                         marginBottom: spacing.xs,
                       },
                     ]}
@@ -212,12 +212,11 @@ const DetailsScreen: React.FC = () => {
                   key={item}
                   style={[
                     styles.similarItem,
+                    styles.similarItemSize,
                     {
                       backgroundColor: colors.CARD,
                       borderRadius: radii.md,
                       marginRight: spacing.sm,
-                      width: 120,
-                      height: 180,
                     },
                   ]}
                   activeOpacity={0.7}
@@ -242,6 +241,9 @@ const styles = StyleSheet.create({
     width: '100%',
     justifyContent: 'flex-end',
   },
+  heroImageHeight: {
+    height: 250,
+  },
   heroOverlay: {
     position: 'absolute',
     bottom: 0,
@@ -257,12 +259,18 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
   },
   ratingBadge: {},
+  ratingBadgeBase: {
+    paddingVertical: 2,
+  },
   actionButtons: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   playButton: {
     alignItems: 'center',
+  },
+  playButtonFlex: {
+    flex: 1,
   },
   playButtonText: {
     fontWeight: '600',
@@ -286,8 +294,15 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
   },
+  castAvatarRound: {
+    borderRadius: 30,
+  },
   similarSection: {},
   similarItem: {},
+  similarItemSize: {
+    width: 120,
+    height: 180,
+  },
 });
 
 export default DetailsScreen;

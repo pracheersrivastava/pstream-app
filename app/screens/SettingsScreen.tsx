@@ -191,9 +191,9 @@ const SettingsScreen: React.FC = () => {
               <TouchableOpacity
                 style={[
                   styles.clearButton,
+                  styles.clearButtonBorder,
                   {
                     borderColor: colors.ERROR,
-                    borderWidth: 1,
                     borderRadius: radii.sm,
                     paddingHorizontal: spacing.sm,
                     paddingVertical: spacing.xs,
@@ -269,12 +269,12 @@ const SettingsScreen: React.FC = () => {
         <TouchableOpacity
           style={[
             styles.signOutButton,
+            styles.signOutButtonBorder,
             {
               backgroundColor: colors.CARD,
               borderRadius: radii.md,
               padding: spacing.md,
               marginTop: spacing.xl,
-              borderWidth: 1,
               borderColor: colors.ERROR,
             },
           ]}
@@ -308,8 +308,14 @@ const styles = StyleSheet.create({
   },
   badge: {},
   clearButton: {},
+  clearButtonBorder: {
+    borderWidth: 1,
+  },
   signOutButton: {
     alignItems: 'center',
+  },
+  signOutButtonBorder: {
+    borderWidth: 1,
   },
   signOutText: {
     fontWeight: '600',
