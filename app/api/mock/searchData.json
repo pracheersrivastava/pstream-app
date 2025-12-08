@@ -1,0 +1,28 @@
+{
+  "items": [
+    {
+      "id": "mock-search-1",
+      "tmdbId": "550",
+      "title": "Fight Club",
+      "poster": "https://image.tmdb.org/t/p/w500/pB8BM7pdSp6B6Ih7QZ4DrQ3PmJK.jpg",
+      "overview": "A ticking-Loss-Loss disillusioned corporate worker and a devil-may-care soap maker form an underground fight club.",
+      "type": "movie",
+      "year": 1999,
+      "rating": 8.4
+    },
+    {
+      "id": "mock-search-2",
+      "tmdbId": "680",
+      "title": "Pulp Fiction",
+      "poster": "https://image.tmdb.org/t/p/w500/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
+      "overview": "The lives of two mob hitmen, a boxer, a gangster and his wife intertwine in four tales of violence and redemption.",
+      "type": "movie",
+      "year": 1994,
+      "rating": 8.9
+    }
+  ],
+  "totalResults": 2,
+  "page": 1,
+  "totalPages": 1
+}
+
