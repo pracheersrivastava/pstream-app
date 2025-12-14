@@ -23,6 +23,7 @@ export interface PosterCardProps {
   showProgress?: boolean;
   progress?: number; // 0 - 1
   containerStyle?: StyleProp<ViewStyle>;
+  titleLines?: number;
 }
 
 const PosterCard: React.FC<PosterCardProps> = ({
@@ -32,6 +33,7 @@ const PosterCard: React.FC<PosterCardProps> = ({
   showProgress = false,
   progress = 0,
   containerStyle,
+  titleLines = 1,
 }) => {
   const { colors, radii, spacing, typography } = useTheme();
   const [loaded, setLoaded] = useState(false);
@@ -70,7 +72,7 @@ const PosterCard: React.FC<PosterCardProps> = ({
       </View>
 
       <Text
-        numberOfLines={1}
+        numberOfLines={titleLines}
         style={{
           color: colors.TEXT_PRIMARY,
           marginTop: spacing.xs,

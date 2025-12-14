@@ -28,7 +28,7 @@ import { RootStackParamList } from '../navigation/types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const DEBOUNCE_MS = 350;
+const DEBOUNCE_MS = 300;
 
 const SearchScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
@@ -46,7 +46,7 @@ const SearchScreen: React.FC = () => {
   }, [searchQuery]);
 
   useEffect(() => {
-    if (debouncedQuery.length > 0) {
+    if (debouncedQuery.length >= 2) {
       queryClient.prefetchQuery({
         queryKey: ['search', debouncedQuery],
         queryFn: () => search(debouncedQuery),
@@ -54,6 +54,8 @@ const SearchScreen: React.FC = () => {
       });
     }
   }, [debouncedQuery, queryClient]);
+
+  const queryEnabled = debouncedQuery.length >= 2;
 
   const {
     data,
@@ -63,7 +65,7 @@ const SearchScreen: React.FC = () => {
   } = useQuery<MediaItem[]>({
     queryKey: ['search', debouncedQuery],
     queryFn: () => search(debouncedQuery),
-    enabled: debouncedQuery.length > 0,
+    enabled: queryEnabled,
     staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
     networkMode: 'offlineFirst',
@@ -78,11 +80,11 @@ const SearchScreen: React.FC = () => {
     return Math.floor((viewportWidth - spacing.md * 2 - gap * (columns - 1)) / columns);
   }, [viewportWidth, spacing, columns]);
 
-  const results = debouncedQuery.length > 0 ? data ?? [] : [];
+  const results = queryEnabled ? data ?? [] : [];
   const showIdle = debouncedQuery.length === 0;
-  const showLoading = isFetching && debouncedQuery.length > 0 && results.length === 0;
-  const showEmpty = !showLoading && !isError && debouncedQuery.length > 0 && results.length === 0;
-  const showError = isError && results.length === 0;
+  const showLoading = isFetching && queryEnabled && results.length === 0;
+  const showEmpty = !showLoading && !isError && queryEnabled && results.length === 0;
+  const showError = isError && results.length === 0 && queryEnabled;
 
   const handlePress = useCallback((item: MediaItem) => {
     navigation.navigate('Details', { id: item.id });
@@ -93,9 +95,11 @@ const SearchScreen: React.FC = () => {
     setDebouncedQuery('');
   }, []);
 
-  const handleRefetch = useCallback(() => {
-    refetch();
-  }, [refetch]);
+  const handleRetry = useCallback(() => {
+    if (queryEnabled) {
+      refetch();
+    }
+  }, [queryEnabled, refetch]);
 
   const columnWrapperStyle = useMemo<StyleProp<ViewStyle>>(
     () => [
@@ -125,6 +129,18 @@ const SearchScreen: React.FC = () => {
     () => [styles.footer, { paddingVertical: spacing.md }],
     [spacing.md],
   );
+  const listContentStyle = useMemo(
+    () => ({
+      paddingHorizontal: spacing.md,
+      paddingBottom: spacing.xl,
+    }),
+    [spacing.md, spacing.xl],
+  );
+
+  const skeletonItems = useMemo(
+    () => Array.from({ length: Math.max(4, columns * 2) }),
+    [columns],
+  );
 
   return (
     <ThemedView variant="background" style={styles.container}>
@@ -136,10 +152,7 @@ const SearchScreen: React.FC = () => {
         keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         onScrollBeginDrag={Keyboard.dismiss}
-        contentContainerStyle={{
-          paddingHorizontal: spacing.md,
-          paddingBottom: spacing.xl,
-        }}
+        contentContainerStyle={listContentStyle}
         ListHeaderComponent={
           <View style={[styles.header, { paddingVertical: spacing.md }]}>
             <ThemedText variant="h1" style={{ marginBottom: spacing.md }}>
@@ -155,7 +168,7 @@ const SearchScreen: React.FC = () => {
                     fontSize: typography.fontSize.body,
                   },
                 ]}
-                placeholder="Search movies, shows, genres..."
+                placeholder="Search movies & shows"
                 placeholderTextColor={colors.MUTED}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -163,6 +176,7 @@ const SearchScreen: React.FC = () => {
                 onSubmitEditing={() => setDebouncedQuery(searchQuery.trim())}
                 autoCapitalize="none"
                 autoCorrect={false}
+                autoFocus
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity onPress={clearQuery} accessibilityRole="button" accessibilityLabel="Clear search">
@@ -188,6 +202,7 @@ const SearchScreen: React.FC = () => {
             showProgress={typeof item.progress === 'number'}
             progress={item.progress ?? 0}
             containerStyle={gridCardStyle}
+            titleLines={2}
           />
         )}
         ListEmptyComponent={
@@ -200,7 +215,29 @@ const SearchScreen: React.FC = () => {
                 </ThemedText>
               </>
             )}
-            {showLoading && <ActivityIndicator color={colors.PRIMARY} size="large" />}
+            {showLoading && (
+              <FlatList
+                data={skeletonItems}
+                keyExtractor={(_, idx) => `skeleton-${idx}`}
+                numColumns={columns}
+                columnWrapperStyle={columnWrapperStyle}
+                scrollEnabled={false}
+                renderItem={() => (
+                  <View
+                    style={[
+                      styles.skeletonCard,
+                      {
+                        width: posterWidth,
+                        height: Math.round(posterWidth * 1.5),
+                        borderRadius: radii.md,
+                        marginBottom: spacing.md,
+                        backgroundColor: colors.SURFACE,
+                      },
+                    ]}
+                  />
+                )}
+              />
+            )}
             {showEmpty && (
               <>
                 <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>No matches</ThemedText>
@@ -211,7 +248,7 @@ const SearchScreen: React.FC = () => {
               <>
                 <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>Unable to search</ThemedText>
                 <ThemedText variant="body" color="secondary" style={{ marginBottom: spacing.md }}>
-                  Check your connection or try again.
+                  {queryEnabled ? 'Check your connection or try again.' : "You're offline."}
                 </ThemedText>
                 <TouchableOpacity
                   style={{
@@ -220,7 +257,7 @@ const SearchScreen: React.FC = () => {
                     paddingVertical: spacing.sm,
                     borderRadius: radii.sm,
                   }}
-                  onPress={handleRefetch}
+                  onPress={handleRetry}
                   accessibilityRole="button"
                   accessibilityLabel="Retry search">
                   <ThemedText variant="body" color="accent">Retry</ThemedText>
@@ -236,6 +273,8 @@ const SearchScreen: React.FC = () => {
             </View>
           ) : null
         }
+        removeClippedSubviews
+        initialNumToRender={6}
       />
     </ThemedView>
   );
