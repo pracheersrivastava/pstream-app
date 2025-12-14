@@ -1,185 +1,242 @@
 /**
  * SearchScreen - Search functionality for content discovery.
- * Demonstrates themed search UI components.
+ * Uses react-query with debounced input, grid layout, and reusable PosterCard.
  */
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   StyleSheet,
   TextInput,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
+  Keyboard,
+  ActivityIndicator,
+  useWindowDimensions,
+  StyleProp,
+  ViewStyle,
 } from 'react-native';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { search } from '../api/pstream';
+import type { MediaItem } from '../api/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { ThemedView } from '../components/ThemedView';
 import { ThemedText } from '../components/ThemedText';
+import PosterCard from '../components/PosterCard';
+import { RootStackParamList } from '../navigation/types';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const DEBOUNCE_MS = 350;
 
 const SearchScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+  const queryClient = useQueryClient();
   const { colors, spacing, radii, typography } = useTheme();
+  const { width } = useWindowDimensions();
+  const viewportWidth = width || 390;
+
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
 
-  // Placeholder recent searches
-  const recentSearches = ['Action Movies', 'Comedy Series', 'Documentary'];
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedQuery(searchQuery.trim()), DEBOUNCE_MS);
+    return () => clearTimeout(handle);
+  }, [searchQuery]);
 
-  // Placeholder trending topics
-  const trendingTopics = [
-    { id: '1', title: 'Trending Movie 1', category: 'Movie' },
-    { id: '2', title: 'Popular Series', category: 'TV Show' },
-    { id: '3', title: 'New Documentary', category: 'Documentary' },
-  ];
+  useEffect(() => {
+    if (debouncedQuery.length > 0) {
+      queryClient.prefetchQuery({
+        queryKey: ['search', debouncedQuery],
+        queryFn: () => search(debouncedQuery),
+        staleTime: 60 * 1000,
+      });
+    }
+  }, [debouncedQuery, queryClient]);
+
+  const {
+    data,
+    isFetching,
+    isError,
+    refetch,
+  } = useQuery<MediaItem[]>({
+    queryKey: ['search', debouncedQuery],
+    queryFn: () => search(debouncedQuery),
+    enabled: debouncedQuery.length > 0,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    networkMode: 'offlineFirst',
+  });
+
+  const columns = useMemo(
+    () => Math.max(2, Math.floor((viewportWidth - spacing.md * 2) / 150)),
+    [viewportWidth, spacing],
+  );
+  const posterWidth = useMemo(() => {
+    const gap = spacing.sm;
+    return Math.floor((viewportWidth - spacing.md * 2 - gap * (columns - 1)) / columns);
+  }, [viewportWidth, spacing, columns]);
+
+  const results = debouncedQuery.length > 0 ? data ?? [] : [];
+  const showIdle = debouncedQuery.length === 0;
+  const showLoading = isFetching && debouncedQuery.length > 0 && results.length === 0;
+  const showEmpty = !showLoading && !isError && debouncedQuery.length > 0 && results.length === 0;
+  const showError = isError && results.length === 0;
+
+  const handlePress = useCallback((item: MediaItem) => {
+    navigation.navigate('Details', { id: item.id });
+  }, [navigation]);
+
+  const clearQuery = useCallback(() => {
+    setSearchQuery('');
+    setDebouncedQuery('');
+  }, []);
+
+  const handleRefetch = useCallback(() => {
+    refetch();
+  }, [refetch]);
+
+  const columnWrapperStyle = useMemo<StyleProp<ViewStyle>>(
+    () => [
+      styles.columnWrapper,
+      columns > 1 ? styles.columnMulti : styles.columnSingle,
+      { marginBottom: spacing.md },
+    ],
+    [columns, spacing.md],
+  );
+
+  const searchInputContainerStyle = useMemo(
+    () => [
+      styles.searchInputContainer,
+      {
+        backgroundColor: colors.SURFACE,
+        borderRadius: radii.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderColor: colors.CARD,
+      },
+    ],
+    [colors.CARD, colors.SURFACE, radii.md, spacing.md, spacing.sm],
+  );
+
+  const gridCardStyle = useMemo(() => styles.gridCard, []);
+  const footerStyle = useMemo(
+    () => [styles.footer, { paddingVertical: spacing.md }],
+    [spacing.md],
+  );
 
   return (
     <ThemedView variant="background" style={styles.container}>
-      {/* Search Header */}
-      <View style={[styles.header, { padding: spacing.md }]}>
-        <ThemedText variant="h1" style={{ marginBottom: spacing.md }}>
-          Search
-        </ThemedText>
-
-        {/* Search Input */}
-        <View
-          style={[
-            styles.searchInputContainer,
-            {
-              backgroundColor: colors.SURFACE,
-              borderRadius: radii.md,
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.sm,
-            },
-          ]}>
-          <TextInput
-            style={[
-              styles.searchInput,
-              {
-                color: colors.TEXT_PRIMARY,
-                fontSize: typography.fontSize.body,
-              },
-            ]}
-            placeholder="Search movies, shows, genres..."
-            placeholderTextColor={colors.MUTED}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-        </View>
-      </View>
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}>
-        {/* Recent Searches */}
-        <View style={[styles.section, { paddingHorizontal: spacing.md }]}>
-          <View style={styles.sectionHeader}>
-            <ThemedText variant="h2">Recent Searches</ThemedText>
-            <TouchableOpacity>
-              <ThemedText variant="small" color="accent">
-                Clear
-              </ThemedText>
-            </TouchableOpacity>
-          </View>
-
-          {recentSearches.map((search, index) => (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.recentItem,
-                {
-                  backgroundColor: colors.CARD,
-                  borderRadius: radii.sm,
-                  padding: spacing.md,
-                  marginBottom: spacing.sm,
-                },
-              ]}
-              activeOpacity={0.7}>
-              <ThemedText variant="body">{search}</ThemedText>
-              <ThemedText variant="small" color="muted">
-                ×
-              </ThemedText>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Trending */}
-        <View
-          style={[
-            styles.section,
-            { paddingHorizontal: spacing.md, marginTop: spacing.lg },
-          ]}>
-          <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-            Trending Now
-          </ThemedText>
-
-          {trendingTopics.map(item => (
-            <TouchableOpacity
-              key={item.id}
-              style={[
-                styles.trendingItem,
-                {
-                  backgroundColor: colors.CARD,
-                  borderRadius: radii.md,
-                  padding: spacing.md,
-                  marginBottom: spacing.sm,
-                },
-              ]}
-              activeOpacity={0.7}>
-              {/* Placeholder thumbnail */}
-              <View
+      <FlatList
+        data={results}
+        keyExtractor={item => item.id}
+        numColumns={columns}
+        columnWrapperStyle={columnWrapperStyle}
+        keyboardDismissMode="on-drag"
+        keyboardShouldPersistTaps="handled"
+        onScrollBeginDrag={Keyboard.dismiss}
+        contentContainerStyle={{
+          paddingHorizontal: spacing.md,
+          paddingBottom: spacing.xl,
+        }}
+        ListHeaderComponent={
+          <View style={[styles.header, { paddingVertical: spacing.md }]}>
+            <ThemedText variant="h1" style={{ marginBottom: spacing.md }}>
+              Search
+            </ThemedText>
+            <View
+              style={searchInputContainerStyle}>
+              <TextInput
                 style={[
-                  styles.trendingThumbnail,
+                  styles.searchInput,
                   {
-                    backgroundColor: colors.SURFACE,
-                    borderRadius: radii.sm,
-                    marginRight: spacing.md,
+                    color: colors.TEXT_PRIMARY,
+                    fontSize: typography.fontSize.body,
                   },
                 ]}
+                placeholder="Search movies, shows, genres..."
+                placeholderTextColor={colors.MUTED}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+                onSubmitEditing={() => setDebouncedQuery(searchQuery.trim())}
+                autoCapitalize="none"
+                autoCorrect={false}
               />
-              <View style={styles.trendingInfo}>
-                <ThemedText variant="body">{item.title}</ThemedText>
-                <ThemedText variant="small" color="secondary">
-                  {item.category}
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={clearQuery} accessibilityRole="button" accessibilityLabel="Clear search">
+                  <ThemedText variant="small" color="accent">Clear</ThemedText>
+                </TouchableOpacity>
+              )}
+            </View>
+            {isFetching && results.length > 0 ? (
+              <View style={[styles.inlineStatus, { marginTop: spacing.sm }]}>
+                <ActivityIndicator color={colors.PRIMARY} size="small" />
+                <ThemedText variant="small" color="secondary" style={{ marginLeft: spacing.xs }}>
+                  Updating results...
                 </ThemedText>
               </View>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Browse Categories */}
-        <View
-          style={[
-            styles.section,
-            { paddingHorizontal: spacing.md, marginTop: spacing.lg },
-          ]}>
-          <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-            Browse by Category
-          </ThemedText>
-
-          <View style={styles.categoriesGrid}>
-            {[
-              { name: 'Action', color: colors.ERROR },
-              { name: 'Comedy', color: colors.WARNING },
-              { name: 'Drama', color: colors.PRIMARY },
-              { name: 'Horror', color: colors.MUTED },
-              { name: 'Romance', color: colors.ACCENT },
-              { name: 'Sci-Fi', color: colors.SUCCESS },
-            ].map(category => (
-              <TouchableOpacity
-                key={category.name}
-                style={[
-                  styles.categoryCard,
-                  styles.categoryCardBorder,
-                  {
-                    backgroundColor: colors.CARD,
-                    borderRadius: radii.md,
-                    padding: spacing.md,
-                    borderLeftColor: category.color,
-                  },
-                ]}
-                activeOpacity={0.7}>
-                <ThemedText variant="body">{category.name}</ThemedText>
-              </TouchableOpacity>
-            ))}
+            ) : null}
           </View>
-        </View>
-      </ScrollView>
+        }
+        renderItem={({ item }) => (
+          <PosterCard
+            item={item}
+            width={posterWidth}
+            onPress={handlePress}
+            showProgress={typeof item.progress === 'number'}
+            progress={item.progress ?? 0}
+            containerStyle={gridCardStyle}
+          />
+        )}
+        ListEmptyComponent={
+          <View style={[styles.emptyState, { paddingVertical: spacing.xl }]}>
+            {showIdle && (
+              <>
+                <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>Find something to watch</ThemedText>
+                <ThemedText variant="body" color="secondary">
+                  Start typing to search the catalogue.
+                </ThemedText>
+              </>
+            )}
+            {showLoading && <ActivityIndicator color={colors.PRIMARY} size="large" />}
+            {showEmpty && (
+              <>
+                <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>No matches</ThemedText>
+                <ThemedText variant="body" color="secondary">Try a different title or keyword.</ThemedText>
+              </>
+            )}
+            {showError && (
+              <>
+                <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>Unable to search</ThemedText>
+                <ThemedText variant="body" color="secondary" style={{ marginBottom: spacing.md }}>
+                  Check your connection or try again.
+                </ThemedText>
+                <TouchableOpacity
+                  style={{
+                    backgroundColor: colors.CARD,
+                    paddingHorizontal: spacing.lg,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radii.sm,
+                  }}
+                  onPress={handleRefetch}
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry search">
+                  <ThemedText variant="body" color="accent">Retry</ThemedText>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        }
+        ListFooterComponent={
+          isFetching && results.length > 0 ? (
+            <View style={footerStyle}>
+              <ActivityIndicator color={colors.PRIMARY} />
+            </View>
+          ) : null
+        }
+      />
     </ThemedView>
   );
 };
@@ -192,48 +249,33 @@ const styles = StyleSheet.create({
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 4,
   },
-  scrollView: {
-    flex: 1,
-  },
-  section: {},
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  emptyState: {
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
   },
-  recentItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  trendingItem: {
+  inlineStatus: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  trendingThumbnail: {
-    width: 60,
-    height: 60,
-  },
-  trendingInfo: {
-    flex: 1,
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+  columnWrapper: {},
+  columnMulti: {
     justifyContent: 'space-between',
   },
-  categoryCard: {
-    width: '48%',
-    marginBottom: 12,
+  columnSingle: {
+    justifyContent: 'flex-start',
   },
-  categoryCardBorder: {
-    borderLeftWidth: 4,
+  gridCard: {
+    marginRight: 0,
+  },
+  footer: {
+    alignItems: 'center',
   },
 });
 
