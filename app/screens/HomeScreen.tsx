@@ -1,287 +1,386 @@
 /**
- * HomeScreen - Main home screen with featured content.
- * Demonstrates usage of theme tokens and themed components.
+ * HomeScreen - P-Stream home experience
+ * - Hero banner
+ * - Horizontal carousels using FlatList
+ * - React Query for caching and offline
  */
-import React from 'react';
+import React, { useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   StyleSheet,
-  ScrollView,
+  FlatList,
   TouchableOpacity,
+  Image,
+  Dimensions,
+  RefreshControl,
+  useWindowDimensions,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { fetchHome, fetchDetails, fetchSources } from '../api/pstream';
+import type { MediaItem } from '../api/types';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { ThemedView } from '../components/ThemedView';
 import { ThemedText } from '../components/ThemedText';
+import PosterCard from '../components/PosterCard';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-/**
- * Placeholder poster component for content grid
- */
-const PosterPlaceholder: React.FC<{
+const SCREEN_WIDTH = Dimensions.get('window').width;
+
+interface RowData {
+  key: string;
   title: string;
-  onPress: () => void;
-}> = ({ title, onPress }) => {
-  const { colors, radii, spacing } = useTheme();
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.poster,
-        {
-          backgroundColor: colors.CARD,
-          borderRadius: radii.md,
-          marginRight: spacing.sm,
-        },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.7}>
-      {/* Placeholder image area */}
-      <View
-        style={[
-          styles.posterImage,
-          {
-            backgroundColor: colors.SURFACE,
-            borderTopLeftRadius: radii.md,
-            borderTopRightRadius: radii.md,
-          },
-        ]}
-      />
-      <View style={[styles.posterInfo, { padding: spacing.sm }]}>
-        <ThemedText variant="small" numberOfLines={2}>
-          {title}
-        </ThemedText>
-      </View>
-    </TouchableOpacity>
-  );
-};
-
-/**
- * Primary button component
- */
-const PrimaryButton: React.FC<{
-  title: string;
-  onPress: () => void;
-}> = ({ title, onPress }) => {
-  const { colors, radii, spacing } = useTheme();
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.primaryButton,
-        {
-          backgroundColor: colors.PRIMARY,
-          borderRadius: radii.sm,
-          paddingVertical: spacing.sm,
-          paddingHorizontal: spacing.md,
-        },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.8}>
-      <ThemedText variant="body" style={styles.buttonText}>
-        {title}
-      </ThemedText>
-    </TouchableOpacity>
-  );
-};
-
-/**
- * Secondary button component
- */
-const SecondaryButton: React.FC<{
-  title: string;
-  onPress: () => void;
-}> = ({ title, onPress }) => {
-  const { colors, radii, spacing } = useTheme();
-
-  return (
-    <TouchableOpacity
-      style={[
-        styles.secondaryButton,
-        styles.secondaryButtonBase,
-        {
-          borderColor: colors.MUTED,
-          borderRadius: radii.sm,
-          paddingVertical: spacing.sm,
-          paddingHorizontal: spacing.md,
-        },
-      ]}
-      onPress={onPress}
-      activeOpacity={0.8}>
-      <ThemedText variant="body" color="secondary">
-        {title}
-      </ThemedText>
-    </TouchableOpacity>
-  );
-};
+  items: MediaItem[];
+  showProgress?: boolean;
+}
 
 const HomeScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const queryClient = useQueryClient();
   const { colors, spacing, radii } = useTheme();
+  const { width: windowWidth } = useWindowDimensions();
+  const viewportWidth = windowWidth || SCREEN_WIDTH;
 
-  // Placeholder content data
-  const featuredContent = [
-    { id: '1', title: 'Popular Movie 1' },
-    { id: '2', title: 'Trending Series' },
-    { id: '3', title: 'New Release' },
-    { id: '4', title: 'Top Rated' },
-  ];
+  const cachedHome = queryClient.getQueryData<MediaItem[]>(['home']);
+
+  const {
+    data,
+    isLoading,
+    isFetching,
+    isError,
+    refetch,
+  } = useQuery<MediaItem[]>({
+    queryKey: ['home'],
+    queryFn: fetchHome,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000, // gcTime replaces cacheTime in react-query v5
+    networkMode: 'offlineFirst',
+    retry: 1,
+    placeholderData: cachedHome,
+  });
+
+  const hasData = Boolean(data?.length);
+  // Prefetch details for first 6 items (top carousel)
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+    const top = data.slice(0, 6);
+    top.forEach((item: MediaItem) => {
+      queryClient.prefetchQuery({
+        queryKey: ['details', item.id],
+        queryFn: () => fetchDetails(item.id),
+        staleTime: 10 * 60 * 1000,
+      });
+    });
+  }, [data, queryClient]);
+
+  const heroItem = data?.[0];
+  const libraryItems = useMemo(() => data?.slice(1) ?? [], [data]);
+  const continueWatching = useMemo(
+    () => libraryItems.filter(item => typeof item.progress === 'number' && item.progress > 0),
+    [libraryItems],
+  );
+
+  const posterWidth = useMemo(() => {
+    const baseColumns = Math.max(2, Math.floor((viewportWidth - spacing.md * 2) / 140));
+    const gap = spacing.sm;
+    return Math.floor((viewportWidth - spacing.md * 2 - gap * (baseColumns - 1)) / baseColumns);
+  }, [viewportWidth, spacing]);
+
+  const rows: RowData[] = useMemo(() => {
+    if (!libraryItems || libraryItems.length === 0) return [];
+
+    const trending = libraryItems.slice(0, 12);
+    const popular = libraryItems.slice(12, 24);
+    const newReleases = libraryItems.slice(24, 36);
+
+    const list: RowData[] = [];
+    if (continueWatching.length) {
+      list.push({ key: 'continue', title: 'Continue Watching', items: continueWatching, showProgress: true });
+    }
+    if (trending.length) list.push({ key: 'trending', title: 'Trending', items: trending });
+    if (popular.length) list.push({ key: 'popular', title: 'Popular', items: popular });
+    if (newReleases.length) list.push({ key: 'new', title: 'New Releases', items: newReleases });
+
+    return list;
+  }, [libraryItems, continueWatching]);
+
+  const onPressCard = useCallback((item: MediaItem) => {
+    navigation.navigate('Details', { id: item.id });
+  }, [navigation]);
+
+  const handleWatchHero = useCallback(async () => {
+    if (!heroItem) return;
+    if (heroItem.tmdbId) {
+      // Prefetch sources; fall back to player navigation
+      queryClient.prefetchQuery({
+        queryKey: ['sources', heroItem.tmdbId],
+        queryFn: () => fetchSources(heroItem.tmdbId!),
+        staleTime: 5 * 60 * 1000,
+      });
+    }
+    navigation.navigate('Player');
+  }, [heroItem, navigation, queryClient]);
+
+  const renderHero = useCallback(() => {
+    if (!heroItem) return null;
+
+    const backdrop = heroItem.backdrop ?? heroItem.poster ?? undefined;
+
+    return (
+      <View
+        style={[
+          styles.heroContainer,
+          {
+            marginBottom: spacing.md,
+            backgroundColor: colors.SURFACE,
+            borderRadius: radii.md,
+          },
+        ]}>
+        {backdrop ? (
+          <Image
+            source={{ uri: backdrop }}
+            style={[styles.heroImage, { height: Math.round(SCREEN_WIDTH * 0.56) }]}
+            resizeMode="cover"
+            accessibilityIgnoresInvertColors
+          />
+        ) : (
+          <View
+            style={[
+              styles.heroImage,
+              {
+                height: Math.round(SCREEN_WIDTH * 0.56),
+                backgroundColor: colors.SURFACE,
+              },
+            ]}
+          />
+        )}
+        <View style={{ padding: spacing.md }}>
+          <ThemedText variant="h1" numberOfLines={1}>
+            {heroItem.title}
+          </ThemedText>
+          <ThemedText variant="body" color="secondary" numberOfLines={2} style={{ marginTop: spacing.xs }}>
+            {heroItem.overview || ''}
+          </ThemedText>
+          <View style={[styles.heroButtonRow, { marginTop: spacing.md }]}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Watch now"
+              onPress={handleWatchHero}
+              activeOpacity={0.85}
+              style={[
+                styles.primaryButton,
+                {
+                  backgroundColor: colors.PRIMARY,
+                  paddingVertical: spacing.sm,
+                  paddingHorizontal: spacing.lg,
+                  borderRadius: radii.sm,
+                  marginRight: spacing.sm,
+                },
+              ]}>
+              <ThemedText variant="body">Watch</ThemedText>
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="More info"
+              onPress={() => navigation.navigate('Details', { id: heroItem.id })}
+              activeOpacity={0.85}
+              style={{
+                backgroundColor: colors.CARD,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.lg,
+                borderRadius: radii.sm,
+              }}>
+              <ThemedText variant="body" color="secondary">More Info</ThemedText>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    );
+  }, [heroItem, colors, spacing, radii, handleWatchHero, navigation]);
+
+  const renderRow = useCallback(({ item }: { item: RowData }) => {
+    return (
+      <View style={[styles.rowContainer, { marginBottom: spacing.lg }]}>
+        <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
+          {item.title}
+        </ThemedText>
+        <FlatList
+          data={item.items}
+          keyExtractor={(m) => m.id}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          nestedScrollEnabled
+          getItemLayout={(_, index) => ({
+            length: posterWidth + spacing.sm,
+            offset: (posterWidth + spacing.sm) * index,
+            index,
+          })}
+          renderItem={({ item: media }) => (
+            <PosterCard
+              item={media}
+              width={posterWidth}
+              onPress={onPressCard}
+              showProgress={item.showProgress ?? typeof media.progress === 'number'}
+              progress={media.progress ?? 0}
+              containerStyle={{ marginRight: spacing.sm }}
+            />
+          )}
+        />
+      </View>
+    );
+  }, [onPressCard, posterWidth, spacing]);
+
+  const keyExtractor = useCallback((row: RowData) => row.key, []);
+
+  const renderContent = () => {
+    if (isLoading && !hasData) {
+      return <SkeletonHome posterWidth={posterWidth} />;
+    }
+    if (isError && !hasData) {
+      return (
+        <ErrorView onRetry={refetch} />
+      );
+    }
+    if (!hasData) {
+      return <EmptyState onRetry={refetch} />;
+    }
+    return (
+      <FlatList
+        data={rows}
+        keyExtractor={keyExtractor}
+        ListHeaderComponent={
+          <>
+            {renderHero()}
+            {isError ? <OfflineBanner onRetry={refetch} /> : null}
+          </>
+        }
+        contentContainerStyle={{ padding: spacing.md, paddingBottom: spacing.xl }}
+        renderItem={renderRow}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching && !isLoading}
+            onRefresh={refetch}
+            tintColor={colors.TEXT_PRIMARY}
+          />
+        }
+        ListEmptyComponent={<EmptyState onRetry={refetch} />}
+      />
+    );
+  };
 
   return (
     <ThemedView variant="background" style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={{ paddingBottom: spacing.xl }}>
-        {/* Hero Section */}
-        <View
-          style={[
-            styles.heroSection,
-            {
-              backgroundColor: colors.SURFACE,
-              padding: spacing.lg,
-              marginBottom: spacing.md,
-            },
-          ]}>
-          <ThemedText variant="h1" style={styles.heroTitle}>
-            Welcome to PStream
-          </ThemedText>
-          <ThemedText
-            variant="body"
-            color="secondary"
-            style={{ marginBottom: spacing.md }}>
-            Discover and stream your favorite content
-          </ThemedText>
-
-          {/* Button row */}
-          <View style={styles.buttonRow}>
-            <PrimaryButton
-              title="Browse Content"
-              onPress={() => navigation.navigate('Details')}
-            />
-            <View style={{ width: spacing.sm }} />
-            <SecondaryButton
-              title="View Library"
-              onPress={() => {}}
-            />
-          </View>
-        </View>
-
-        {/* Featured Section */}
-        <View style={[styles.section, { paddingHorizontal: spacing.md }]}>
-          <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-            Featured
-          </ThemedText>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingRight: spacing.md }}>
-            {featuredContent.map(item => (
-              <PosterPlaceholder
-                key={item.id}
-                title={item.title}
-                onPress={() => navigation.navigate('Details')}
-              />
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Continue Watching Section */}
-        <View
-          style={[
-            styles.section,
-            { paddingHorizontal: spacing.md, marginTop: spacing.lg },
-          ]}>
-          <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-            Continue Watching
-          </ThemedText>
-
-          {/* Card with progress indicator */}
-          <View
-            style={[
-              styles.continueCard,
-              {
-                backgroundColor: colors.CARD,
-                borderRadius: radii.md,
-                padding: spacing.md,
-              },
-            ]}>
-            <View style={styles.continueCardContent}>
-              <View
-                style={[
-                  styles.continueThumbnail,
-                  {
-                    backgroundColor: colors.SURFACE,
-                    borderRadius: radii.sm,
-                    marginRight: spacing.md,
-                  },
-                ]}
-              />
-              <View style={styles.continueInfo}>
-                <ThemedText variant="body">Last Watched Title</ThemedText>
-                <ThemedText variant="small" color="secondary">
-                  Episode 5 • 23 min left
-                </ThemedText>
-                {/* Progress bar */}
-                <View
-                  style={[
-                    styles.progressBar,
-                    {
-                      backgroundColor: colors.MUTED,
-                      borderRadius: radii.sm,
-                      marginTop: spacing.sm,
-                    },
-                  ]}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    styles.progressFillWidth,
-                    {
-                      backgroundColor: colors.PRIMARY,
-                      borderRadius: radii.sm,
-                    },
-                  ]}
-                />
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Categories Section */}
-        <View
-          style={[
-            styles.section,
-            { paddingHorizontal: spacing.md, marginTop: spacing.lg },
-          ]}>
-          <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-            Categories
-          </ThemedText>
-          <View style={styles.categoriesGrid}>
-            {['Action', 'Comedy', 'Drama', 'Sci-Fi'].map(category => (
-              <TouchableOpacity
-                key={category}
-                style={[
-                  styles.categoryChip,
-                  {
-                    backgroundColor: colors.CARD,
-                    borderRadius: radii.sm,
-                    paddingVertical: spacing.sm,
-                    paddingHorizontal: spacing.md,
-                    marginRight: spacing.sm,
-                    marginBottom: spacing.sm,
-                  },
-                ]}
-                activeOpacity={0.7}>
-                <ThemedText variant="small">{category}</ThemedText>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      </ScrollView>
+      {renderContent()}
     </ThemedView>
+  );
+};
+
+const SkeletonHome: React.FC<{ posterWidth: number }> = ({ posterWidth }) => {
+  const { colors, spacing, radii } = useTheme();
+  const heroHeight = Math.round(SCREEN_WIDTH * 0.56);
+  return (
+    <View style={[styles.skeletonContainer, { padding: spacing.md }]}>
+      <View
+        style={[
+          styles.skeletonHero,
+          {
+          height: heroHeight,
+          backgroundColor: colors.SURFACE,
+          borderRadius: radii.md,
+          marginBottom: spacing.lg,
+          },
+        ]}
+      />
+      {[0, 1, 2].map(row => (
+        <View key={row} style={[styles.skeletonRow, { marginBottom: spacing.lg }]}>
+          <View style={[styles.skeletonTitle, { backgroundColor: colors.SURFACE, marginBottom: spacing.sm, borderRadius: radii.sm }]} />
+          <View style={styles.skeletonCarousel}>
+            {[0, 1, 2, 3].map(i => (
+              <View
+                key={i}
+                style={[
+                  styles.skeletonPoster,
+                  {
+                    width: posterWidth,
+                    height: Math.round(posterWidth * 1.5),
+                    backgroundColor: colors.SURFACE,
+                    borderRadius: radii.md,
+                  },
+                ]}
+              />
+            ))}
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+};
+
+const ErrorView: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
+  const { colors, spacing, radii } = useTheme();
+  return (
+    <View style={[styles.errorContainer, { padding: spacing.lg }]}>
+      <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>Something went wrong</ThemedText>
+      <ThemedText variant="body" color="secondary" style={{ marginBottom: spacing.lg }}>Please check your connection and try again.</ThemedText>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Retry loading home"
+        onPress={onRetry}
+        activeOpacity={0.85}
+        style={{
+          backgroundColor: colors.PRIMARY,
+          paddingVertical: spacing.sm,
+          paddingHorizontal: spacing.lg,
+          borderRadius: radii.sm,
+        }}>
+        <ThemedText variant="body">Retry</ThemedText>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const EmptyState: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
+  const { colors, spacing, radii } = useTheme();
+  return (
+    <View style={[styles.emptyContainer, { padding: spacing.lg }]}>
+      <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>Nothing to show yet</ThemedText>
+      <ThemedText variant="body" color="secondary" style={{ marginBottom: spacing.lg }}>
+        Content will appear when we can reach the service.
+      </ThemedText>
+      <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Retry loading home"
+        onPress={onRetry}
+        activeOpacity={0.85}
+        style={{
+          backgroundColor: colors.CARD,
+          paddingVertical: spacing.sm,
+          paddingHorizontal: spacing.lg,
+          borderRadius: radii.sm,
+        }}>
+        <ThemedText variant="body">Retry</ThemedText>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
+const OfflineBanner: React.FC<{ onRetry: () => void }> = ({ onRetry }) => {
+  const { colors, spacing, radii } = useTheme();
+  return (
+    <View style={[styles.offlineBanner, { backgroundColor: colors.CARD, borderRadius: radii.sm, padding: spacing.md, marginBottom: spacing.md }]}>
+      <View style={styles.offlineRow}>
+        <View style={[styles.offlineDot, { backgroundColor: colors.WARNING, marginRight: spacing.sm }]} />
+        <ThemedText variant="body" color="secondary" style={styles.offlineText}>
+          Showing cached content. You appear to be offline.
+        </ThemedText>
+        <TouchableOpacity onPress={onRetry} accessibilityRole="button" accessibilityLabel="Retry sync">
+          <ThemedText variant="body" color="accent">Retry</ThemedText>
+        </TouchableOpacity>
+      </View>
+    </View>
   );
 };
 
@@ -289,63 +388,53 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
+  heroContainer: {
+    overflow: 'hidden',
   },
-  heroSection: {},
-  heroTitle: {
-    marginBottom: 8,
+  heroImage: {
+    width: '100%',
   },
-  buttonRow: {
+  heroButtonRow: {
     flexDirection: 'row',
-    alignItems: 'center',
   },
   primaryButton: {},
-  secondaryButton: {},
-  secondaryButtonBase: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-  },
-  buttonText: {
-    fontWeight: '600',
-  },
-  section: {},
-  poster: {
+  rowContainer: {},
+  skeletonContainer: {},
+  skeletonHero: {},
+  skeletonRow: {},
+  skeletonTitle: {
     width: 120,
-    height: 180,
+    height: 20,
   },
-  posterImage: {
-    width: '100%',
-    height: 130,
+  skeletonCarousel: {
+    flexDirection: 'row',
   },
-  posterInfo: {},
-  continueCard: {},
-  continueCardContent: {
+  skeletonPoster: {
+    marginRight: 8,
+  },
+  errorContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  offlineBanner: {},
+  offlineRow: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  continueThumbnail: {
-    width: 80,
-    height: 60,
+  offlineDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
-  continueInfo: {
+  offlineText: {
     flex: 1,
   },
-  progressBar: {
-    height: 4,
-    width: '100%',
-  },
-  progressFill: {
-    height: '100%',
-  },
-  progressFillWidth: {
-    width: '65%',
-  },
-  categoriesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  categoryChip: {},
 });
 
 export default HomeScreen;

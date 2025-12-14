@@ -43,3 +43,21 @@ jest.mock('@react-navigation/native-stack', () => ({
   }),
 }));
 
+// Mock AsyncStorage to avoid native module errors in Jest
+jest.mock(
+  '@react-native-async-storage/async-storage',
+  () => require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
+);
+
+// Mock MMKV (not available in Jest)
+jest.mock('react-native-mmkv', () => {
+  const mockInstance = {
+    getString: jest.fn(),
+    set: jest.fn(),
+    delete: jest.fn(),
+  };
+  return {
+    MMKV: jest.fn(() => mockInstance),
+  };
+});
+

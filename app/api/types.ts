@@ -39,6 +39,12 @@ export interface MediaItem {
   year?: number;
   /** Rating (0-10) */
   rating?: number;
+  /** Normalized playback progress between 0-1 */
+  progress?: number;
+  /** Total runtime in seconds (if known) */
+  runtimeSeconds?: number;
+  /** Watched seconds (if known) */
+  watchedSeconds?: number;
   /** Available sources (populated when fetching details) */
   sources?: Source[];
   /** Season number (for episodes) */
