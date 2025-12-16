@@ -1,6 +1,9 @@
 /**
  * @format
- * Unit tests for SettingsService
+ * Unit tests for SettingsService (deprecated service)
+ *
+ * Note: The SettingsService is deprecated. Instance URL changes are no longer
+ * supported. The app uses a fixed BASE_API_URL (proxy at port 3003).
  */
 
 import {
@@ -9,157 +12,70 @@ import {
   validateInstanceUrl,
   resetInstanceUrl,
 } from '../services/SettingsService';
-import { DEFAULT_INSTANCE } from '../config/defaults';
+import { BASE_API_URL } from '../config/defaults';
 
 // Mock storage
-jest.mock('../store/storage', () => {
-  let storage: Record<string, string> = {};
-
-  return {
-    getItem: jest.fn((key: string) => Promise.resolve(storage[key] ?? null)),
-    setItem: jest.fn((key: string, value: string) => {
-      storage[key] = value;
-      return Promise.resolve();
-    }),
-    removeItem: jest.fn((key: string) => {
-      delete storage[key];
-      return Promise.resolve();
-    }),
-    STORAGE_KEYS: {
-      INSTANCE_URL: 'instance_url',
-      MOCK_MODE: 'mock_mode',
-    },
-    // Helper to reset storage between tests
-    __resetStorage: () => {
-      storage = {};
-    },
-  };
-});
-
-// Mock axios
-jest.mock('axios', () => ({
-  get: jest.fn(),
-  isAxiosError: jest.fn((error) => error?.isAxiosError === true),
+jest.mock('../store/storage', () => ({
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  STORAGE_KEYS: {
+    INSTANCE_URL: 'instance_url',
+    MOCK_MODE: 'mock_mode',
+  },
 }));
 
-import axios from 'axios';
-import * as storage from '../store/storage';
-
-const mockedAxios = axios as jest.Mocked<typeof axios>;
-const mockedStorage = storage as jest.Mocked<typeof storage> & {
-  __resetStorage: () => void;
-};
-
-describe('SettingsService', () => {
+describe('SettingsService (Deprecated)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockedStorage.__resetStorage();
   });
 
   describe('getInstanceUrl', () => {
-    it('returns DEFAULT_INSTANCE when no URL is saved', async () => {
-      const url = await getInstanceUrl();
-      expect(url).toBe(DEFAULT_INSTANCE);
+    it('always returns BASE_API_URL (fixed proxy URL)', async () => {
+      const result = await getInstanceUrl();
+      expect(result).toBe(BASE_API_URL);
+      expect(result).toBe('http://129.159.231.53:3003');
     });
 
-    it('returns saved URL when one exists', async () => {
-      const savedUrl = 'https://custom.pstream.com';
-      await mockedStorage.setItem('instance_url', savedUrl);
-
-      const url = await getInstanceUrl();
-      expect(url).toBe(savedUrl);
+    it('returns proxy URL (port 3003), not backend URL (port 3000)', async () => {
+      const result = await getInstanceUrl();
+      expect(result).toContain(':3003');
+      expect(result).not.toContain(':3000');
     });
   });
 
   describe('setInstanceUrl', () => {
-    it('saves the URL to storage', async () => {
-      const newUrl = 'https://new.pstream.com';
-      await setInstanceUrl(newUrl);
-
-      expect(mockedStorage.setItem).toHaveBeenCalledWith('instance_url', newUrl);
-    });
-
-    it('removes trailing slashes from URL', async () => {
-      const urlWithSlash = 'https://new.pstream.com///';
-      await setInstanceUrl(urlWithSlash);
-
-      expect(mockedStorage.setItem).toHaveBeenCalledWith(
-        'instance_url',
-        'https://new.pstream.com',
-      );
+    it('is a no-op (deprecated)', async () => {
+      // Should not throw
+      await expect(setInstanceUrl('http://different.url:3003')).resolves.toBeUndefined();
     });
   });
 
   describe('validateInstanceUrl', () => {
-    it('returns true for valid response with items array', async () => {
-      mockedAxios.get.mockResolvedValueOnce({
-        status: 200,
-        data: { items: [] },
-      });
-
-      const isValid = await validateInstanceUrl('https://valid.pstream.com');
-      expect(isValid).toBe(true);
+    it('returns true for BASE_API_URL', async () => {
+      const result = await validateInstanceUrl(BASE_API_URL);
+      expect(result).toBe(true);
     });
 
-    it('returns true for valid array response', async () => {
-      mockedAxios.get.mockResolvedValueOnce({
-        status: 200,
-        data: [],
-      });
-
-      const isValid = await validateInstanceUrl('https://valid.pstream.com');
-      expect(isValid).toBe(true);
+    it('returns true for BASE_API_URL with trailing slash', async () => {
+      const result = await validateInstanceUrl(`${BASE_API_URL}/`);
+      expect(result).toBe(true);
     });
 
-    it('returns false for non-200 status', async () => {
-      mockedAxios.get.mockResolvedValueOnce({
-        status: 500,
-        data: { items: [] },
-      });
-
-      const isValid = await validateInstanceUrl('https://invalid.pstream.com');
-      expect(isValid).toBe(false);
+    it('returns false for any other URL', async () => {
+      const result = await validateInstanceUrl('http://other.url:3003');
+      expect(result).toBe(false);
     });
 
-    it('returns false for invalid response structure', async () => {
-      mockedAxios.get.mockResolvedValueOnce({
-        status: 200,
-        data: { foo: 'bar' },
-      });
-
-      const isValid = await validateInstanceUrl('https://invalid.pstream.com');
-      expect(isValid).toBe(false);
-    });
-
-    it('returns false on network error', async () => {
-      mockedAxios.get.mockRejectedValueOnce(new Error('Network Error'));
-
-      const isValid = await validateInstanceUrl('https://unreachable.pstream.com');
-      expect(isValid).toBe(false);
-    });
-
-    it('returns false on timeout', async () => {
-      const timeoutError = new Error('timeout') as Error & { code?: string; isAxiosError?: boolean };
-      timeoutError.code = 'ECONNABORTED';
-      timeoutError.isAxiosError = true;
-      mockedAxios.get.mockRejectedValueOnce(timeoutError);
-      mockedAxios.isAxiosError.mockReturnValueOnce(true);
-
-      const isValid = await validateInstanceUrl('https://slow.pstream.com');
-      expect(isValid).toBe(false);
+    it('returns false for backend URL (port 3000)', async () => {
+      const result = await validateInstanceUrl('http://129.159.231.53:3000');
+      expect(result).toBe(false);
     });
   });
 
   describe('resetInstanceUrl', () => {
-    it('resets URL to DEFAULT_INSTANCE', async () => {
-      await setInstanceUrl('https://custom.pstream.com');
-      await resetInstanceUrl();
-
-      expect(mockedStorage.setItem).toHaveBeenLastCalledWith(
-        'instance_url',
-        DEFAULT_INSTANCE,
-      );
+    it('is a no-op (deprecated)', async () => {
+      // Should not throw
+      await expect(resetInstanceUrl()).resolves.toBeUndefined();
     });
   });
 });
-
