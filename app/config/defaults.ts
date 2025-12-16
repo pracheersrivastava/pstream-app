@@ -1,14 +1,26 @@
 /**
  * Default configuration values for the pstream app.
- * These can be overridden at runtime via Settings.
+ *
+ * SECURITY NOTICE:
+ * This app NEVER communicates with the backend (port 3000) in any form.
+ * All network traffic MUST go through the proxy (port 3003) ONLY.
+ * Direct backend access is forbidden and will be rejected at runtime.
  */
 
 /**
- * Default P-Stream instance URL.
- * Users can change this in Settings to use a different instance.
- * Set to '__MOCK__' to enable mock mode by default.
+ * Base API URL - the ONLY entry point for all network traffic.
+ * This points to the PROXY server, NOT the backend.
+ *
+ * INVARIANT: Port 3003 is the proxy. Port 3000 is the backend.
+ * The app MUST ONLY communicate with the proxy.
  */
-export const DEFAULT_INSTANCE = 'https://pstream.example.com';
+export const BASE_API_URL = 'http://129.159.231.53:3003';
+
+/**
+ * Forbidden port - direct backend access is blocked at runtime.
+ * Any request attempting to reach this port will be rejected.
+ */
+export const FORBIDDEN_BACKEND_PORT = 3000;
 
 /**
  * API request timeout in milliseconds
