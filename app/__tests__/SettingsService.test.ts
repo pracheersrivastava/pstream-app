@@ -33,7 +33,8 @@ describe('SettingsService (Deprecated)', () => {
     it('always returns BASE_API_URL (fixed proxy URL)', async () => {
       const result = await getInstanceUrl();
       expect(result).toBe(BASE_API_URL);
-      expect(result).toBe('http://129.159.231.53:3003');
+      // BASE_API_URL is 10.0.2.2:3003 for Android emulator (maps to localhost on host)
+      expect(result).toBe('http://10.0.2.2:3003');
     });
 
     it('returns proxy URL (port 3003), not backend URL (port 3000)', async () => {
@@ -67,7 +68,7 @@ describe('SettingsService (Deprecated)', () => {
     });
 
     it('returns false for backend URL (port 3000)', async () => {
-      const result = await validateInstanceUrl('http://129.159.231.53:3000');
+      const result = await validateInstanceUrl('http://10.0.2.2:3000');
       expect(result).toBe(false);
     });
   });
