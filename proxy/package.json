@@ -1,0 +1,23 @@
+{
+  "name": "pstream-proxy",
+  "version": "1.0.0",
+  "description": "P-Stream Proxy - Metadata passthrough and streaming proxy for P-Stream mobile app",
+  "scripts": {
+    "dev": "nitro dev",
+    "build": "nitro build",
+    "start": "node .output/server/index.mjs",
+    "preview": "nitro preview"
+  },
+  "dependencies": {
+    "h3": "^1.12.0",
+    "nitropack": "^2.9.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "private": true
+}
+
