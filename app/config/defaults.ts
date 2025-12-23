@@ -14,9 +14,8 @@
  * INVARIANT: Port 3003 is the proxy. Port 3000 is the backend.
  * The app MUST ONLY communicate with the proxy.
  */
-// For Android emulator: 10.0.2.2 maps to host machine's localhost
 // For production: use 'http://129.159.231.53:3003'
-export const BASE_API_URL = 'http://10.0.2.2:3003';
+export const BASE_API_URL = 'http://129.159.231.53:3003';
 
 /**
  * Forbidden port - direct backend access is blocked at runtime.
@@ -38,9 +37,4 @@ export const API_RETRY_COUNT = 1;
  * Client identifier sent with all API requests
  */
 export const CLIENT_IDENTIFIER = 'pstream-app';
-
-/**
- * Mock mode identifier - when instance URL is this value, use mock data
- */
-export const MOCK_INSTANCE_IDENTIFIER = '__MOCK__';
 

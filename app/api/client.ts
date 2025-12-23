@@ -30,6 +30,7 @@ import {
   API_RETRY_COUNT,
   CLIENT_IDENTIFIER,
 } from '../config/defaults';
+import { getCurrentInstance } from '../config/env';
 import { normalizeError, ApiError, ErrorCodes } from './errors';
 
 /**
@@ -170,6 +171,10 @@ export function createApiClient(): AxiosInstance {
   // Request interceptor - validate destination and add headers
   client.interceptors.request.use(
     async (config: InternalAxiosRequestConfig) => {
+      // DYNAMIC URL: Set baseURL from storage
+      const currentUrl = await getCurrentInstance();
+      config.baseURL = currentUrl;
+
       // SECURITY GUARD: Validate the final request URL
       const fullUrl = `${config.baseURL ?? ''}${config.url ?? ''}`;
       assertNotBackendPort(fullUrl);

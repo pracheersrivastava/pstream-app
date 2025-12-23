@@ -28,28 +28,6 @@ import {
   SourcesResponse,
 } from './types';
 import { ApiError, ErrorCodes } from './errors';
-import { getMockHome, getMockSearch, getMockDetails, getMockSources } from './mock';
-import { getItem, setItem, STORAGE_KEYS } from '../store/storage';
-
-/**
- * Check if mock mode is currently enabled.
- * Mock mode is for development/testing when the proxy is unreachable.
- */
-async function shouldUseMock(): Promise<boolean> {
-  const mockMode = await getItem(STORAGE_KEYS.MOCK_MODE);
-  return mockMode === 'true';
-}
-
-/**
- * Enable or disable mock mode.
- * @param enabled - Whether mock mode should be enabled
- */
-export async function setMockMode(enabled: boolean): Promise<void> {
-  await setItem(STORAGE_KEYS.MOCK_MODE, enabled ? 'true' : 'false');
-  if (__DEV__) {
-    console.log(`[PStream] Mock mode ${enabled ? 'enabled' : 'disabled'}`);
-  }
-}
 
 /**
  * Map raw proxy response item to MediaItem type.
@@ -152,14 +130,6 @@ function mapToSource(raw: Record<string, unknown>): Source {
  */
 export async function fetchHome(): Promise<MediaItem[]> {
   try {
-    if (await shouldUseMock()) {
-      if (__DEV__) {
-        console.log('[PStream] Using mock data for home');
-      }
-      const mockData = await getMockHome();
-      return mockData.items;
-    }
-
     // Fetch from proxy: GET /home
     const response = await get<HomeResponse | unknown[]>('/home');
 
@@ -180,16 +150,6 @@ export async function fetchHome(): Promise<MediaItem[]> {
     if (__DEV__) {
       console.error('[PStream] fetchHome error:', error);
     }
-
-    // Fall back to mock on network errors
-    if (error instanceof ApiError && error.code === ErrorCodes.NETWORK_ERROR) {
-      if (__DEV__) {
-        console.log('[PStream] Falling back to mock data');
-      }
-      const mockData = await getMockHome();
-      return mockData.items;
-    }
-
     throw error;
   }
 }
@@ -208,14 +168,6 @@ export async function search(query: string): Promise<MediaItem[]> {
   }
 
   try {
-    if (await shouldUseMock()) {
-      if (__DEV__) {
-        console.log('[PStream] Using mock data for search');
-      }
-      const mockData = await getMockSearch(query);
-      return mockData.items;
-    }
-
     // Fetch from proxy: GET /search?q=query
     const response = await get<SearchResponse | unknown[]>('/search', { q: query });
 
@@ -236,16 +188,6 @@ export async function search(query: string): Promise<MediaItem[]> {
     if (__DEV__) {
       console.error('[PStream] search error:', error);
     }
-
-    // Fall back to mock on network errors
-    if (error instanceof ApiError && error.code === ErrorCodes.NETWORK_ERROR) {
-      if (__DEV__) {
-        console.log('[PStream] Falling back to mock data');
-      }
-      const mockData = await getMockSearch(query);
-      return mockData.items;
-    }
-
     throw error;
   }
 }
@@ -260,13 +202,6 @@ export async function search(query: string): Promise<MediaItem[]> {
  */
 export async function fetchDetails(id: string): Promise<MediaItem> {
   try {
-    if (await shouldUseMock()) {
-      if (__DEV__) {
-        console.log('[PStream] Using mock data for details');
-      }
-      return getMockDetails(id);
-    }
-
     // Fetch from proxy: GET /catalog/:id
     const response = await get<MediaItem | Record<string, unknown>>(`/catalog/${id}`);
 
@@ -275,15 +210,6 @@ export async function fetchDetails(id: string): Promise<MediaItem> {
     if (__DEV__) {
       console.error('[PStream] fetchDetails error:', error);
     }
-
-    // Fall back to mock on network errors
-    if (error instanceof ApiError && error.code === ErrorCodes.NETWORK_ERROR) {
-      if (__DEV__) {
-        console.log('[PStream] Falling back to mock data');
-      }
-      return getMockDetails(id);
-    }
-
     throw error;
   }
 }
@@ -306,14 +232,6 @@ export async function fetchSources(
   mediaType: 'movie' | 'tv' = 'movie',
 ): Promise<Source[]> {
   try {
-    if (await shouldUseMock()) {
-      if (__DEV__) {
-        console.log('[PStream] Using mock data for sources');
-      }
-      const mockData = await getMockSources(tmdbId);
-      return mockData.sources;
-    }
-
     // Fetch from proxy: GET /sources?tmdbId=...&type=...
     const response = await get<SourcesResponse | unknown[]>('/sources', {
       tmdbId,
@@ -337,16 +255,62 @@ export async function fetchSources(
     if (__DEV__) {
       console.error('[PStream] fetchSources error:', error);
     }
+    throw error;
+  }
+}
 
-    // Fall back to mock on network errors
-    if (error instanceof ApiError && error.code === ErrorCodes.NETWORK_ERROR) {
-      if (__DEV__) {
-        console.log('[PStream] Falling back to mock data');
-      }
-      const mockData = await getMockSources(tmdbId);
-      return mockData.sources;
+/**
+ * Fetch latest movies from the proxy.
+ *
+ * Endpoint: GET /latest
+ *
+ * @returns Array of MediaItem
+ */
+export async function fetchLatest(): Promise<MediaItem[]> {
+  try {
+    const response = await get<HomeResponse | unknown[]>('/latest');
+
+    if (Array.isArray(response)) {
+      return response.map(item => mapToMediaItem(item as Record<string, unknown>));
     }
 
+    if (response && typeof response === 'object' && 'items' in response && Array.isArray(response.items)) {
+      return response.items.map(item => mapToMediaItem(item as unknown as Record<string, unknown>));
+    }
+
+    return [];
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[PStream] fetchLatest error:', error);
+    }
+    throw error;
+  }
+}
+
+/**
+ * Fetch latest TV shows from the proxy.
+ *
+ * Endpoint: GET /latesttv
+ *
+ * @returns Array of MediaItem
+ */
+export async function fetchLatestTV(): Promise<MediaItem[]> {
+  try {
+    const response = await get<HomeResponse | unknown[]>('/latesttv');
+
+    if (Array.isArray(response)) {
+      return response.map(item => mapToMediaItem(item as Record<string, unknown>));
+    }
+
+    if (response && typeof response === 'object' && 'items' in response && Array.isArray(response.items)) {
+      return response.items.map(item => mapToMediaItem(item as unknown as Record<string, unknown>));
+    }
+
+    return [];
+  } catch (error) {
+    if (__DEV__) {
+      console.error('[PStream] fetchLatestTV error:', error);
+    }
     throw error;
   }
 }
@@ -356,5 +320,6 @@ export default {
   search,
   fetchDetails,
   fetchSources,
-  setMockMode,
+  fetchLatest,
+  fetchLatestTV,
 };

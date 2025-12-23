@@ -12,78 +12,75 @@
  * ============================================================================
  */
 
+import axios from 'axios';
+import { setItem, removeItem, STORAGE_KEYS } from '../store/storage';
 import { BASE_API_URL } from '../config/defaults';
+import { getCurrentInstance } from '../config/env';
 
 /**
  * Get the currently configured instance URL.
  *
- * @deprecated The API URL is now fixed. This function always returns BASE_API_URL.
- * @returns Promise resolving to BASE_API_URL
+ * @returns Promise resolving to the current instance URL
  */
 export async function getInstanceUrl(): Promise<string> {
-  return BASE_API_URL;
+  return getCurrentInstance();
 }
 
 /**
  * Set a new instance URL.
  *
- * @deprecated Instance URL changes are no longer supported.
- * The app uses a fixed BASE_API_URL for security reasons.
- * This function is a no-op.
- *
- * @param _url - The URL to set (ignored)
+ * @param url - The URL to set
  */
-export async function setInstanceUrl(_url: string): Promise<void> {
-  if (__DEV__) {
-    console.warn(
-      '[SettingsService] setInstanceUrl is deprecated. ' +
-        'The app uses a fixed proxy URL and does not support changing instances.',
-    );
-  }
-  // No-op: we no longer allow changing the instance URL
+export async function setInstanceUrl(url: string): Promise<void> {
+  // Normalize URL: remove trailing slash
+  const normalizedUrl = url.replace(/\/+$/, '');
+  await setItem(STORAGE_KEYS.INSTANCE_URL, normalizedUrl);
 }
 
 /**
  * Validate an instance URL by making a test request.
- *
- * @deprecated Instance URL validation is no longer supported.
- * This function always returns true for the fixed BASE_API_URL,
- * false for any other URL.
+ * Checks if the URL points to a valid P-Stream proxy.
  *
  * @param url - The instance URL to validate
- * @returns Promise resolving to true if url matches BASE_API_URL
+ * @returns Promise resolving to true if valid
  */
 export async function validateInstanceUrl(url: string): Promise<boolean> {
   const normalizedUrl = url.replace(/\/+$/, '');
 
-  if (normalizedUrl === BASE_API_URL) {
+  try {
+    // Check for forbidden backend port (3000)
+    if (normalizedUrl.includes(':3000')) {
+      return false;
+    }
+
+    // Try /meta endpoint first, fallback to /ping
+    // We use a raw axios request to avoid the global client's interceptors
+    // which might be bound to the old URL.
+    const response = await axios.get(`${normalizedUrl}/meta`, {
+      timeout: 5000,
+      validateStatus: (status) => status === 200,
+    });
+
     return true;
+  } catch (error) {
+    try {
+      // Fallback to /ping
+      await axios.get(`${normalizedUrl}/ping`, {
+        timeout: 5000,
+        validateStatus: (status) => status === 200,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   }
-
-  if (__DEV__) {
-    console.warn(
-      '[SettingsService] validateInstanceUrl is deprecated. ' +
-        `Only the fixed proxy URL (${BASE_API_URL}) is valid.`,
-    );
-  }
-
-  return false;
 }
 
 /**
  * Reset instance URL to the default value.
- *
- * @deprecated The instance URL is now fixed and cannot be changed.
- * This function is a no-op.
  */
 export async function resetInstanceUrl(): Promise<void> {
-  if (__DEV__) {
-    console.warn(
-      '[SettingsService] resetInstanceUrl is deprecated. ' +
-        'The app uses a fixed proxy URL.',
-    );
-  }
-  // No-op
+  await removeItem(STORAGE_KEYS.INSTANCE_URL);
 }
 
 export default {
