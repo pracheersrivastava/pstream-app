@@ -1,51 +1,104 @@
-/**
- * DetailsScreen - Content detail view.
- * Shows movie/show information with play options.
- */
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
+import { fetchDetails, fetchSources } from '../api/pstream';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { ThemedView } from '../components/ThemedView';
 import { ThemedText } from '../components/ThemedText';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Details'>;
+type DetailsScreenRouteProp = RouteProp<RootStackParamList, 'Details'>;
 
 const DetailsScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<DetailsScreenRouteProp>();
+  const { id } = route.params || {};
   const { colors, spacing, radii } = useTheme();
+
+  const {
+    data: item,
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
+    queryKey: ['details', id],
+    queryFn: () => fetchDetails(id),
+    enabled: !!id,
+  });
+
+  const handlePlay = useCallback(async () => {
+    if (!item?.tmdbId) return;
+    
+    // Navigate to player immediately, let player handle source fetching or pass params
+    // For now, we just navigate to Player. 
+    // In a real app, we might fetch sources here or pass the ID to Player.
+    navigation.navigate('Player');
+  }, [item, navigation]);
+
+  if (isLoading) {
+    return (
+      <ThemedView variant="background" style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={colors.PRIMARY} />
+      </ThemedView>
+    );
+  }
+
+  if (isError || !item) {
+    return (
+      <ThemedView variant="background" style={styles.centerContainer}>
+        <ThemedText style={{ marginBottom: spacing.md }}>Failed to load details</ThemedText>
+        <TouchableOpacity
+          onPress={() => refetch()}
+          style={{
+            backgroundColor: colors.PRIMARY,
+            padding: spacing.sm,
+            borderRadius: radii.sm,
+          }}>
+          <ThemedText>Retry</ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+    );
+  }
+
+  const backdrop = item.backdrop || item.poster;
 
   return (
     <ThemedView variant="background" style={styles.container}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={{ paddingBottom: spacing.xl }}>
-        {/* Hero Image Placeholder */}
-        <View
-          style={[
-            styles.heroImage,
-            styles.heroImageHeight,
-            {
-              backgroundColor: colors.SURFACE,
-            },
-          ]}>
-          {/* Gradient overlay would go here */}
+        {/* Hero Image */}
+        <View style={[styles.heroImage, styles.heroImageHeight]}>
+          {backdrop ? (
+            <Image
+              source={{ uri: backdrop }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.SURFACE }]} />
+          )}
           <View
             style={[
               styles.heroOverlay,
               {
                 padding: spacing.md,
+                backgroundColor: 'rgba(0,0,0,0.4)',
+                width: '100%',
               },
             ]}>
             <ThemedText variant="small" color="accent">
-              MOVIE
+              {item.type === 'tv' ? 'TV SHOW' : 'MOVIE'}
             </ThemedText>
           </View>
         </View>
@@ -53,34 +106,34 @@ const DetailsScreen: React.FC = () => {
         {/* Content Info */}
         <View style={[styles.contentSection, { padding: spacing.md }]}>
           <ThemedText variant="h1" style={{ marginBottom: spacing.xs }}>
-            Sample Movie Title
+            {item.title}
           </ThemedText>
 
           <View style={styles.metaRow}>
-            <ThemedText variant="small" color="secondary">
-              2024
-            </ThemedText>
-            <ThemedText variant="small" color="muted" style={styles.metaDot}>
-              •
-            </ThemedText>
-            <ThemedText variant="small" color="secondary">
-              2h 15m
-            </ThemedText>
-            <ThemedText variant="small" color="muted" style={styles.metaDot}>
-              •
-            </ThemedText>
-            <View
-              style={[
-                styles.ratingBadge,
-                styles.ratingBadgeBase,
-                {
-                  backgroundColor: colors.SUCCESS,
-                  borderRadius: radii.sm,
-                  paddingHorizontal: spacing.sm,
-                },
-              ]}>
-              <ThemedText variant="small">8.5</ThemedText>
-            </View>
+            {item.year && (
+              <>
+                <ThemedText variant="small" color="secondary">
+                  {item.year}
+                </ThemedText>
+                <ThemedText variant="small" color="muted" style={styles.metaDot}>
+                  •
+                </ThemedText>
+              </>
+            )}
+            {item.rating && (
+              <View
+                style={[
+                  styles.ratingBadge,
+                  styles.ratingBadgeBase,
+                  {
+                    backgroundColor: colors.SUCCESS,
+                    borderRadius: radii.sm,
+                    paddingHorizontal: spacing.sm,
+                  },
+                ]}>
+                <ThemedText variant="small">{item.rating.toFixed(1)}</ThemedText>
+              </View>
+            )}
           </View>
 
           {/* Action Buttons */}
@@ -96,134 +149,50 @@ const DetailsScreen: React.FC = () => {
                   marginRight: spacing.sm,
                 },
               ]}
-              onPress={() => navigation.navigate('Player')}
+              onPress={handlePlay}
               activeOpacity={0.8}>
               <ThemedText variant="body" style={styles.playButtonText}>
                 ▶ Play
               </ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.secondaryButton,
-                {
-                  backgroundColor: colors.CARD,
-                  borderRadius: radii.md,
-                  paddingVertical: spacing.md,
-                  paddingHorizontal: spacing.lg,
-                },
-              ]}
-              activeOpacity={0.8}>
-              <ThemedText variant="body">+</ThemedText>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.secondaryButton,
-                {
-                  backgroundColor: colors.CARD,
-                  borderRadius: radii.md,
-                  paddingVertical: spacing.md,
-                  paddingHorizontal: spacing.lg,
-                  marginLeft: spacing.sm,
-                },
-              ]}
-              activeOpacity={0.8}>
-              <ThemedText variant="body">↓</ThemedText>
             </TouchableOpacity>
           </View>
 
           {/* Description */}
           <View style={[styles.descriptionSection, { marginTop: spacing.lg }]}>
             <ThemedText variant="body" color="secondary">
-              A compelling story about adventure and discovery. This is placeholder
-              description text that would normally contain the full synopsis of
-              the movie or TV show. The dark theme makes it easy to read even in
-              low light conditions.
+              {item.overview}
             </ThemedText>
           </View>
 
           {/* Genres */}
-          <View style={[styles.genresSection, { marginTop: spacing.lg }]}>
-            <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-              Genres
-            </ThemedText>
-            <View style={styles.genresList}>
-              {['Action', 'Adventure', 'Sci-Fi'].map(genre => (
-                <View
-                  key={genre}
-                  style={[
-                    styles.genreChip,
-                    {
-                      backgroundColor: colors.CARD,
-                      borderRadius: radii.sm,
-                      paddingVertical: spacing.xs,
-                      paddingHorizontal: spacing.sm,
-                      marginRight: spacing.sm,
-                    },
-                  ]}>
-                  <ThemedText variant="small" color="secondary">
-                    {genre}
-                  </ThemedText>
-                </View>
-              ))}
-            </View>
-          </View>
-
-          {/* Cast Section */}
-          <View style={[styles.castSection, { marginTop: spacing.lg }]}>
-            <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-              Cast
-            </ThemedText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {['Actor 1', 'Actor 2', 'Actor 3', 'Actor 4'].map((actor, index) => (
-                <View
-                  key={index}
-                  style={[
-                    styles.castItem,
-                    { marginRight: spacing.md },
-                  ]}>
+          {item.genres && (
+            <View style={[styles.genresSection, { marginTop: spacing.lg }]}>
+              <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
+                Genres
+              </ThemedText>
+              <View style={styles.genresList}>
+                {item.genres.map((genre) => (
                   <View
+                    key={genre}
                     style={[
-                      styles.castAvatar,
-                      styles.castAvatarRound,
+                      styles.genreChip,
                       {
                         backgroundColor: colors.CARD,
-                        marginBottom: spacing.xs,
+                        borderRadius: radii.sm,
+                        paddingVertical: spacing.xs,
+                        paddingHorizontal: spacing.sm,
+                        marginRight: spacing.sm,
+                        marginBottom: spacing.sm,
                       },
-                    ]}
-                  />
-                  <ThemedText variant="small" color="secondary">
-                    {actor}
-                  </ThemedText>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-
-          {/* Similar Content */}
-          <View style={[styles.similarSection, { marginTop: spacing.lg }]}>
-            <ThemedText variant="h2" style={{ marginBottom: spacing.sm }}>
-              More Like This
-            </ThemedText>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-              {[1, 2, 3, 4].map(item => (
-                <TouchableOpacity
-                  key={item}
-                  style={[
-                    styles.similarItem,
-                    styles.similarItemSize,
-                    {
-                      backgroundColor: colors.CARD,
-                      borderRadius: radii.md,
-                      marginRight: spacing.sm,
-                    },
-                  ]}
-                  activeOpacity={0.7}
-                />
-              ))}
-            </ScrollView>
-          </View>
+                    ]}>
+                    <ThemedText variant="small" color="secondary">
+                      {genre}
+                    </ThemedText>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
         </View>
       </ScrollView>
     </ThemedView>
@@ -233,6 +202,11 @@ const DetailsScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   scrollView: {
     flex: 1,
@@ -275,10 +249,6 @@ const styles = StyleSheet.create({
   playButtonText: {
     fontWeight: '600',
   },
-  secondaryButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   descriptionSection: {},
   genresSection: {},
   genresList: {
@@ -286,23 +256,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   genreChip: {},
-  castSection: {},
-  castItem: {
-    alignItems: 'center',
-  },
-  castAvatar: {
-    width: 60,
-    height: 60,
-  },
-  castAvatarRound: {
-    borderRadius: 30,
-  },
-  similarSection: {},
-  similarItem: {},
-  similarItemSize: {
-    width: 120,
-    height: 180,
-  },
 });
 
 export default DetailsScreen;

@@ -8,8 +8,9 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 
 import HomeScreen from '../screens/HomeScreen';
+import LatestScreen from '../screens/LatestScreen';
+import LatestTvScreen from '../screens/LatestTvScreen';
 import SearchScreen from '../screens/SearchScreen';
-import LibraryScreen from '../screens/LibraryScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import DetailsScreen from '../screens/DetailsScreen';
 import PlayerScreen from '../screens/PlayerScreen';
@@ -45,14 +46,19 @@ const TabNavigator = () => {
         options={{ tabBarLabel: 'Home' }}
       />
       <Tab.Screen
+        name="Latest"
+        component={LatestScreen}
+        options={{ tabBarLabel: 'Movies' }}
+      />
+      <Tab.Screen
+        name="LatestTV"
+        component={LatestTvScreen}
+        options={{ tabBarLabel: 'TV Shows' }}
+      />
+      <Tab.Screen
         name="Search"
         component={SearchScreen}
         options={{ tabBarLabel: 'Search' }}
-      />
-      <Tab.Screen
-        name="Library"
-        component={LibraryScreen}
-        options={{ tabBarLabel: 'Library' }}
       />
       <Tab.Screen
         name="Settings"
