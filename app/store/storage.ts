@@ -78,7 +78,6 @@ export const removeItem = storage.removeItem;
 // Export storage keys for consistency
 export const STORAGE_KEYS = {
   INSTANCE_URL: 'instance_url',
-  MOCK_MODE: 'mock_mode',
 } as const;
 
 export default storage;
