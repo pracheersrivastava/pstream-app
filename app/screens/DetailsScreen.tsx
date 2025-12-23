@@ -10,7 +10,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useQuery } from '@tanstack/react-query';
-import { fetchDetails, fetchSources } from '../api/pstream';
+import { fetchDetails } from '../api/pstream';
 import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { ThemedView } from '../components/ThemedView';
@@ -32,7 +32,7 @@ const DetailsScreen: React.FC = () => {
     refetch,
   } = useQuery({
     queryKey: ['details', id],
-    queryFn: () => fetchDetails(id),
+    queryFn: () => fetchDetails(id || ''),
     enabled: !!id,
   });
 
@@ -91,10 +91,9 @@ const DetailsScreen: React.FC = () => {
           <View
             style={[
               styles.heroOverlay,
+              styles.heroOverlayContent,
               {
                 padding: spacing.md,
-                backgroundColor: 'rgba(0,0,0,0.4)',
-                width: '100%',
               },
             ]}>
             <ThemedText variant="small" color="accent">
@@ -224,6 +223,10 @@ const styles = StyleSheet.create({
     left: 0,
   },
   contentSection: {},
+  heroOverlayContent: {
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    width: '100%',
+  },
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',

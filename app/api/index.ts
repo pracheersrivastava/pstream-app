@@ -18,6 +18,5 @@ export {
   search,
   fetchDetails,
   fetchSources,
-  setMockMode,
 } from './pstream';
 

@@ -14,7 +14,6 @@
 
 import axios from 'axios';
 import { setItem, removeItem, STORAGE_KEYS } from '../store/storage';
-import { BASE_API_URL } from '../config/defaults';
 import { getCurrentInstance } from '../config/env';
 
 /**
@@ -56,13 +55,13 @@ export async function validateInstanceUrl(url: string): Promise<boolean> {
     // Try /meta endpoint first, fallback to /ping
     // We use a raw axios request to avoid the global client's interceptors
     // which might be bound to the old URL.
-    const response = await axios.get(`${normalizedUrl}/meta`, {
+    await axios.get(`${normalizedUrl}/meta`, {
       timeout: 5000,
       validateStatus: (status) => status === 200,
     });
 
     return true;
-  } catch (error) {
+  } catch {
     try {
       // Fallback to /ping
       await axios.get(`${normalizedUrl}/ping`, {

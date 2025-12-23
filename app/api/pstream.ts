@@ -27,7 +27,6 @@ import {
   SearchResponse,
   SourcesResponse,
 } from './types';
-import { ApiError, ErrorCodes } from './errors';
 
 /**
  * Map raw proxy response item to MediaItem type.
