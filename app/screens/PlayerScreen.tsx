@@ -2,239 +2,352 @@
  * PlayerScreen - Media player screen.
  * Displays video player UI with controls.
  */
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   StyleSheet,
   TouchableOpacity,
   StatusBar,
+  ActivityIndicator,
+  FlatList,
+  Modal,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useQuery } from '@tanstack/react-query';
+import Video, { VideoRef, OnLoadData, OnProgressData, TextTrackType, ISO639_1 } from 'react-native-video';
+import { fetchSources } from '../api/pstream';
+import { Source } from '../api/types';
+import { RootStackParamList } from '../navigation/types';
 import { useTheme } from '../theme/ThemeProvider';
 import { ThemedView } from '../components/ThemedView';
 import { ThemedText } from '../components/ThemedText';
 
-const PlayerScreen: React.FC = () => {
-  const navigation = useNavigation();
-  const { colors, spacing, radii } = useTheme();
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [showControls, setShowControls] = useState(true);
+type PlayerScreenRouteProp = RouteProp<RootStackParamList, 'Player'>;
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Player'>;
 
-  // Placeholder progress
-  const progress = 35;
-  const currentTime = '12:45';
-  const totalTime = '2:15:30';
+/**
+ * PlayerScreen component.
+ *
+ * This screen is responsible for video playback for a single title. It:
+ * - Reads navigation route parameters to determine which title to play.
+ * - Fetches available streaming sources for the given title.
+ * - Automatically selects a preferred HLS source and quality.
+ * - Provides basic playback controls (play/pause, progress tracking).
+ * - Handles loading and error states when fetching or playing sources.
+ * - Supports subtitle / text tracks when provided by the selected source.
+ * - Allows manual quality/source selection via a modal.
+ *
+ * Route params (from {@link RootStackParamList} `'Player'`):
+ * - `tmdbId`: Numeric TMDB identifier for the title to play.
+ * - `type`: Content type (for example, `"movie"` or `"tv"`), used to fetch sources.
+ * - `title`: Human-readable title displayed in the UI and navigation header.
+ *
+ * @component
+ * @returns A React element that renders the video player screen with controls.
+ */
+const PlayerScreen: React.FC = () => {
+  const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<PlayerScreenRouteProp>();
+  const { tmdbId, type, title } = route.params;
+  const { colors, spacing, radii } = useTheme();
+
+  const videoRef = useRef<VideoRef>(null);
+  const seekOnLoad = useRef<number | null>(null);
+  const [currentSource, setCurrentSource] = useState<Source | null>(null);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [showControls, setShowControls] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [showQualityModal, setShowQualityModal] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch sources
+  const {
+    data: sourcesResponse,
+    isLoading: isSourcesLoading,
+    isError: isSourcesError,
+    refetch,
+  } = useQuery({
+    queryKey: ['sources', tmdbId, type],
+    queryFn: () => fetchSources(tmdbId, type),
+    gcTime: 0, // Do not cache permanently
+    staleTime: 0,
+  });
+
+  // Select default source
+  useEffect(() => {
+    if (sourcesResponse && sourcesResponse.sources.length > 0) {
+      const sourcesData = sourcesResponse.sources;
+      // 1. Filter for HLS
+      const hlsSources = sourcesData.filter(s => s.type === 'hls' || s.url.includes('.m3u8'));
+      
+      // 2. Sort by quality (simple heuristic)
+      const sorted = hlsSources.sort((a, b) => {
+        if (a.quality === 'auto') return -1;
+        if (b.quality === 'auto') return 1;
+        const qA = parseInt(a.quality, 10);
+        const qB = parseInt(b.quality, 10);
+        if (isNaN(qA) && isNaN(qB)) return 0;
+        if (isNaN(qA)) return 1;
+        if (isNaN(qB)) return -1;
+        return qB - qA;
+      });
+
+      // 3. Pick best or fallback to first available
+      const bestSource = sorted[0] || sourcesData[0];
+      
+      if (bestSource) {
+        setCurrentSource(bestSource);
+        setError(null);
+      } else {
+        setError('No playable sources found');
+      }
+    } else if (sourcesResponse && sourcesResponse.sources.length === 0) {
+      setError('No sources available');
+    }
+  }, [sourcesResponse]);
+(sub.language && sub.language.length === 2 ? sub.language : 'en') as ISO639_1,
+      type: TextTrackType.VTT, // Assuming VTT for now, or check extension
+      uri: sub.url,
+    }));
+  }, [sourcesResponse]);
+
+  const handleLoad = (data: OnLoadData) => {
+    setDuration(data.duration);
+    setIsLoading(false);
+    if (seekOnLoad.current !== null) {
+      videoRef.current?.seek(seekOnLoad.current);
+      seekOnLoad.current = null;
+    }
+  }, [sourcesResponse]);
+
+  const handleLoad = (data: OnLoadData) => {
+    setDuration(data.duration);
+    setIsLoading(false);
+  };
+
+  const handleProgress = (data: OnProgressData) => {
+    setProgress(data.currentTime);
+  };
+
+  const handleError = (videoError: any) => {
+    console.error('Video Error:', videoError);
+    // Try next source if available
+    const sources = sourcesResponse?.sources;
+    if (souIsLoading(true);
+        setrces && currentSource) {
+      const currentIndex = sources.indexOf(currentSource);
+      if (currentIndex < sources.length - 1) {
+        console.log('Switching to next source...');
+        setCurrentSource(sources[currentIndex + 1]);
+      } else {
+        setError('Playback failed for all sources');
+        setIsLoading(false);
+      }
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return h > 0
+      ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+      : `${m}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const toggleControls = () => {
+    setShowControls(!showControls);
+  };
+
+  // Auto-hide controls
+  useEffect(() => {
+    if (showControls && isPlaying) {
+      const timer = setTimeout(() => setShowControls(false), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showControls, isPlaying]);
+
+  if (isSourcesLoading) {
+    return (
+      <ThemedView variant="background" style={styles.centerContainer}>
+        <ActivityIndicator size="large" color={colors.PRIMARY} />
+        <ThemedText style={{  || (!isSourcesLoading && sourcesResponse && !currentSource)marginTop: spacing.md }}>Loading sources...</ThemedText>
+      </ThemedView>
+    );
+  }
+
+  if (isSourcesError || error) {
+    return (
+      <ThemedView variant="background" style={styles.centerContainer}>
+        <ThemedText style={styles.errorText}>
+          {error || 'Failed to load stream'}
+        </ThemedText>
+        <TouchableOpacity
+          onPress={() => {
+            setError(null);
+            refetch();
+          }}
+          style={[styles.button, { backgroundColor: colors.PRIMARY, borderRadius: radii.sm }]}>
+          <ThemedText>Retry</ThemedText>
+        </TouchableOpacity>
+        <TouchableOpacity
+          onPress={() => navigation.goBack()}
+          style={[styles.button, { marginTop: spacing.md }]}>
+          <ThemedText color="secondary">Go Back</ThemedText>
+        </TouchableOpacity>
+      </ThemedView>
+    );
+  }
 
   return (
     <ThemedView variant="background" style={styles.container}>
       <StatusBar hidden />
 
-      {/* Video Area (placeholder) */}
+      {currentSource && (
+        <Video
+          ref={videoRef}
+          source={{ uri: currentSource.url }}
+          style={styles.video}
+          resizeMode="contain"
+          onLoad={handleLoad}
+          onProgress={handleProgress}
+          onError={handleError}
+          paused={!isPlaying}
+          onBuffer={() => setIsLoading(true)}
+          onReadyForDisplay={() => setIsLoading(false)}
+          textTracks={textTracks}
+        />
+      )}
+
+      {/* Clickable Area */}
       <TouchableOpacity
-        style={styles.videoArea}
+        style={StyleSheet.absoluteFill}
         activeOpacity={1}
-        onPress={() => setShowControls(!showControls)}>
-        <View
-          style={[
-            styles.videoPlaceholder,
-            { backgroundColor: colors.SURFACE },
-          ]}>
-          <ThemedText variant="h2" color="muted">
-            Video Player
-          </ThemedText>
-        </View>
+        onPress={toggleControls}>
+        
+        {/* Loading Indicator */}
+        {isLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color={colors.PRIMARY} />
+          </View>
+        )}
 
         {/* Controls Overlay */}
         {showControls && (
-          <View style={[styles.controlsOverlay, { padding: spacing.md }]}>
+          <View style={styles.controlsOverlay}>
             {/* Top Bar */}
             <View style={styles.topBar}>
               <TouchableOpacity
-                style={[
-                  styles.backButton,
-                  {
-                    backgroundColor: colors.CARD,
-                    borderRadius: radii.sm,
-                    padding: spacing.sm,
-                  },
-                ]}
+                style={styles.iconButton}
                 onPress={() => navigation.goBack()}>
-                <ThemedText variant="body">←</ThemedText>
+                <ThemedText variant="h2">←</ThemedText>
               </TouchableOpacity>
-
-              <View style={styles.topBarRight}>
+              
+              <View style={styles.topRightControls}>
                 <TouchableOpacity
-                  style={[
-                    styles.controlButton,
-                    {
-                      backgroundColor: colors.CARD,
-                      borderRadius: radii.sm,
-                      padding: spacing.sm,
-                      marginLeft: spacing.sm,
-                    },
-                  ]}>
-                  <ThemedText variant="small">CC</ThemedText>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.controlButton,
-                    {
-                      backgroundColor: colors.CARD,
-                      borderRadius: radii.sm,
-                      padding: spacing.sm,
-                      marginLeft: spacing.sm,
-                    },
-                  ]}>
-                  <ThemedText variant="small">⚙</ThemedText>
+                  style={styles.iconButton}
+                  onPress={() => setShowQualityModal(true)}>
+                  <ThemedText variant="body">⚙ Quality</ThemedText>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {/* Center Controls */}
+            {/* Center Play/Pause */}
             <View style={styles.centerControls}>
               <TouchableOpacity
-                style={[
-                  styles.skipButton,
-                  {
-                    backgroundColor: colors.CARD,
-                    borderRadius: radii.lg,
-                    padding: spacing.md,
-                  },
-                ]}>
-                <ThemedText variant="body">-10</ThemedText>
+                onPress={() => {
+                  videoRef.current?.seek(progress - 10);
+                }}
+                style={styles.skipButton}>
+                <ThemedText variant="body">-10s</ThemedText>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.playPauseButton,
-                  styles.playPauseButtonSize,
-                  {
-                    backgroundColor: colors.PRIMARY,
-                    marginHorizontal: spacing.xl,
-                  },
-                ]}
-                onPress={() => setIsPlaying(!isPlaying)}>
+                onPress={() => setIsPlaying(!isPlaying)}
+                style={[styles.playButton, { backgroundColor: colors.PRIMARY }]}>
                 <ThemedText variant="h1">{isPlaying ? '⏸' : '▶'}</ThemedText>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.skipButton,
-                  {
-                    backgroundColor: colors.CARD,
-                    borderRadius: radii.lg,
-                    padding: spacing.md,
-                  },
-                ]}>
-                <ThemedText variant="body">+10</ThemedText>
+                onPress={() => {
+                  videoRef.current?.seek(progress + 10);
+                }}
+                style={styles.skipButton}>
+                <ThemedText variant="body">+10s</ThemedText>
               </TouchableOpacity>
             </View>
 
             {/* Bottom Bar */}
             <View style={styles.bottomBar}>
-              {/* Title */}
-              <View style={[styles.titleSection, { marginBottom: spacing.md }]}>
-                <ThemedText variant="body">Sample Movie Title</ThemedText>
-                <ThemedText variant="small" color="secondary">
-                  Chapter 3: The Journey Begins
-                </ThemedText>
-              </View>
-
-              {/* Progress Bar */}
-              <View style={styles.progressContainer}>
-                <ThemedText variant="small" color="secondary">
-                  {currentTime}
-                </ThemedText>
-
-                <View
-                  style={[
-                    styles.progressBarContainer,
-                    {
-                      backgroundColor: colors.MUTED,
-                      borderRadius: radii.sm,
-                      marginHorizontal: spacing.md,
-                    },
-                  ]}>
-                  <View
+              <ThemedText variant="body" style={{ marginBottom: spacing.xs }}>
+                {title}
+              </ThemedText>
+              <View style={styles.timeRow}>
+                <ThemedText variant="small">{formatTime(progress)}</ThemedText>
+                <View style={[styles.progressBar, { backgroundColor: colors.MUTED }]}>
+                  <View 
                     style={[
-                      styles.progressBarFill,
-                      {
+                      styles.progressFill, 
+                      { 
                         backgroundColor: colors.PRIMARY,
-                        borderRadius: radii.sm,
-                        width: `${progress}%`,
-                      },
-                    ]}
-                  />
-                  <View
-                    style={[
-                      styles.progressThumb,
-                      styles.progressThumbRound,
-                      {
-                        backgroundColor: colors.TEXT_PRIMARY,
-                        left: `${progress}%`,
-                      },
-                    ]}
+                        width: `${duration > 0 ? (progress / duration) * 100 : 0}%` 
+                      }
+                    ]} 
                   />
                 </View>
-
-                <ThemedText variant="small" color="secondary">
-                  {totalTime}
-                </ThemedText>
-              </View>
-
-              {/* Additional Controls */}
-              <View
-                style={[
-                  styles.additionalControls,
-                  { marginTop: spacing.md },
-                ]}>
-                <TouchableOpacity
-                  style={[
-                    styles.additionalButton,
-                    {
-                      backgroundColor: colors.CARD,
-                      borderRadius: radii.sm,
-                      paddingVertical: spacing.sm,
-                      paddingHorizontal: spacing.md,
-                    },
-                  ]}>
-                  <ThemedText variant="small">1x</ThemedText>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[
-                    styles.additionalButton,
-                    {
-                      backgroundColor: colors.CARD,
-                      borderRadius: radii.sm,
-                      paddingVertical: spacing.sm,
-                      paddingHorizontal: spacing.md,
-                      marginLeft: spacing.sm,
-                    },
-                  ]}>
-                  <ThemedText variant="small">Episodes</ThemedText>
-                </TouchableOpacity>
-
-                <View style={styles.spacer} />
-
-                <TouchableOpacity
-                  style={[
-                    styles.additionalButton,
-                    {
-                      backgroundColor: colors.CARD,
-                      borderRadius: radii.sm,
-                      paddingVertical: spacing.sm,
-                      paddingHorizontal: spacing.md,
-                    },
-                  ]}>
-                  <ThemedText variant="small">⛶</ThemedText>
-                </TouchableOpacity>
+                <ThemedText variant="small">{formatTime(duration)}</ThemedText>
               </View>
             </View>
           </View>
         )}
       </TouchableOpacity>
+
+      {/* Quality Modal */}
+      <Modal
+        visible={showQualityModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowQualityModal(false)}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowQualityModal(false)}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.modalContent, { backgroundColor: colors.CARD, borderRadius: radii.md }]}>
+            <ThemedText variant="h2" style={{ marginBottom: spacing.md }}>Select Quality</ThemedText>
+            <FlatList
+              data={sourcesResponse?.sources || []}
+              keyExtractor={(item, index) => `${item.quality}-${index}`}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={[
+                    styles.qualityOption,
+                    // eslint-disable-next-line react-native/no-inline-styles
+                    {
+                      borderBottomColor: colors.MUTE?.url === item.url ? colors.SURFACE : 'transparent',
+                    },
+                  ]}
+                  onPress={() => {
+                    seekOnLoad.current = progress;
+                    setCurrentSource(item);
+                    setShowQualityModal(false);
+                  }}>
+                  <ThemedText>
+                    {item.quality} ({item.provider})
+                  </ThemedText>
+                  {currentSource?.url === item.url
+                  {currentSource === item && <ThemedText color="primary">✓</ThemedText>}
+                </TouchableOpacity>
+              )}
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </ThemedView>
   );
 };
@@ -242,79 +355,98 @@ const PlayerScreen: React.FC = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: 'black',
   },
-  videoArea: {
+  centerContainer: {
     flex: 1,
-  },
-  videoPlaceholder: {
-    flex: 1,
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  video: {
+    width: '100%',
+    height: '100%',
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   },
   controlsOverlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0,0,0,0.4)',
     justifyContent: 'space-between',
+    padding: 20,
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  backButton: {},
-  topBarRight: {
+  topRightControls: {
     flexDirection: 'row',
   },
-  controlButton: {},
+  iconButton: {
+    padding: 10,
+  },
   centerControls: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playButton: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginHorizontal: 40,
   },
   skipButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 10,
   },
-  playPauseButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
+  bottomBar: {
+    width: '100%',
   },
-  playPauseButtonSize: {
-    borderRadius: 40,
-    width: 80,
-    height: 80,
-  },
-  bottomBar: {},
-  titleSection: {},
-  progressContainer: {
+  timeRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  progressBarContainer: {
+  progressBar: {
     flex: 1,
     height: 4,
-    position: 'relative',
+    marginHorizontal: 10,
+    borderRadius: 2,
   },
-  progressBarFill: {
+  progressFill: {
     height: '100%',
+    borderRadius: 2,
   },
-  progressThumb: {
-    position: 'absolute',
-    width: 16,
-    height: 16,
-    top: -6,
-    marginLeft: -8,
+  button: {
+    paddingHorizontal: 20,
+    paddingVertical: 10,
   },
-  progressThumbRound: {
-    borderRadius: 8,
-  },
-  additionalControls: {
-    flexDirection: 'row',
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  additionalButton: {},
-  spacer: {
-    flex: 1,
+  modalContent: {
+    width: '80%',
+    maxHeight: '60%',
+    padding: 20,
+  },
+  qualityOption: {
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  errorText: {
+    marginBottom: 16,
+    textAlign: 'center',
   },
 });
 

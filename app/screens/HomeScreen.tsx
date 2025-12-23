@@ -116,12 +116,18 @@ const HomeScreen: React.FC = () => {
     if (heroItem.tmdbId) {
       // Prefetch sources; fall back to player navigation
       queryClient.prefetchQuery({
-        queryKey: ['sources', heroItem.tmdbId],
-        queryFn: () => fetchSources(heroItem.tmdbId!),
+        queryKey: ['sources', heroItem.tmdbId, heroItem.type === 'tv' ? 'tv' : 'movie'],
+        queryFn: () => fetchSources(heroItem.tmdbId!, heroItem.type === 'tv' ? 'tv' : 'movie'),
         staleTime: 5 * 60 * 1000,
       });
+      
+      navigation.navigate('Player', {
+        tmdbId: heroItem.tmdbId,
+        type: heroItem.type === 'tv' ? 'tv' : 'movie',
+        title: heroItem.title,
+        poster: heroItem.poster || undefined,
+      });
     }
-    navigation.navigate('Player');
   }, [heroItem, navigation, queryClient]);
 
   const renderHero = useCallback(() => {

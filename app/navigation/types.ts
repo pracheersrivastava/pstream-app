@@ -1,7 +1,7 @@
 export type RootStackParamList = {
   Main: undefined;
   Details: { id: string } | undefined;
-  Player: undefined;
+  Player: { tmdbId: string; type: 'movie' | 'tv'; title?: string; poster?: string };
 };
 
 export type TabParamList = {

@@ -224,12 +224,12 @@ export async function fetchDetails(id: string): Promise<MediaItem> {
  *
  * @param tmdbId - TMDB ID of the media
  * @param mediaType - 'movie' or 'tv' (defaults to 'movie')
- * @returns Array of available Source objects
+ * @returns SourcesResponse object containing sources and subtitles
  */
 export async function fetchSources(
   tmdbId: string,
   mediaType: 'movie' | 'tv' = 'movie',
-): Promise<Source[]> {
+): Promise<SourcesResponse> {
   try {
     // Fetch from proxy: GET /sources?tmdbId=...&type=...
     const response = await get<SourcesResponse | unknown[]>('/sources', {
@@ -239,17 +239,20 @@ export async function fetchSources(
 
     // Handle different response formats
     if (Array.isArray(response)) {
-      return response.map(source => mapToSource(source as Record<string, unknown>));
+      return { sources: response.map(source => mapToSource(source as Record<string, unknown>)) };
     }
 
     if (response && typeof response === 'object' && 'sources' in response && Array.isArray(response.sources)) {
-      return response.sources.map(source => mapToSource(source as unknown as Record<string, unknown>));
+      const typedResponse = response as SourcesResponse;
+      const sources = typedResponse.sources.map(source => mapToSource(source as unknown as Record<string, unknown>));
+      const { subtitles } = typedResponse;
+      return { sources, subtitles };
     }
 
     if (__DEV__) {
       console.warn('[PStream] Unexpected sources response format');
     }
-    return [];
+    return { sources: [] };
   } catch (error) {
     if (__DEV__) {
       console.error('[PStream] fetchSources error:', error);

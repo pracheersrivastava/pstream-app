@@ -39,10 +39,12 @@ const DetailsScreen: React.FC = () => {
   const handlePlay = useCallback(async () => {
     if (!item?.tmdbId) return;
     
-    // Navigate to player immediately, let player handle source fetching or pass params
-    // For now, we just navigate to Player. 
-    // In a real app, we might fetch sources here or pass the ID to Player.
-    navigation.navigate('Player');
+    navigation.navigate('Player', {
+      tmdbId: item.tmdbId,
+      type: item.type === 'tv' ? 'tv' : 'movie',
+      title: item.title,
+      poster: item.poster || undefined,
+    });
   }, [item, navigation]);
 
   if (isLoading) {
@@ -149,9 +151,10 @@ const DetailsScreen: React.FC = () => {
                 },
               ]}
               onPress={handlePlay}
+              disabled={!item.tmdbId}
               activeOpacity={0.8}>
               <ThemedText variant="body" style={styles.playButtonText}>
-                ▶ Play
+                {item.tmdbId ? '▶ Play' : 'Unavailable'}
               </ThemedText>
             </TouchableOpacity>
           </View>
