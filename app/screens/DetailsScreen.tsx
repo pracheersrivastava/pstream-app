@@ -151,9 +151,10 @@ const DetailsScreen: React.FC = () => {
                 },
               ]}
               onPress={handlePlay}
+              disabled={!item.tmdbId}
               activeOpacity={0.8}>
               <ThemedText variant="body" style={styles.playButtonText}>
-                ▶ Play
+                {item.tmdbId ? '▶ Play' : 'Unavailable'}
               </ThemedText>
             </TouchableOpacity>
           </View>

@@ -26,6 +26,26 @@ import { ThemedText } from '../components/ThemedText';
 type PlayerScreenRouteProp = RouteProp<RootStackParamList, 'Player'>;
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Player'>;
 
+/**
+ * PlayerScreen component.
+ *
+ * This screen is responsible for video playback for a single title. It:
+ * - Reads navigation route parameters to determine which title to play.
+ * - Fetches available streaming sources for the given title.
+ * - Automatically selects a preferred HLS source and quality.
+ * - Provides basic playback controls (play/pause, progress tracking).
+ * - Handles loading and error states when fetching or playing sources.
+ * - Supports subtitle / text tracks when provided by the selected source.
+ * - Allows manual quality/source selection via a modal.
+ *
+ * Route params (from {@link RootStackParamList} `'Player'`):
+ * - `tmdbId`: Numeric TMDB identifier for the title to play.
+ * - `type`: Content type (for example, `"movie"` or `"tv"`), used to fetch sources.
+ * - `title`: Human-readable title displayed in the UI and navigation header.
+ *
+ * @component
+ * @returns A React element that renders the video player screen with controls.
+ */
 const PlayerScreen: React.FC = () => {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<PlayerScreenRouteProp>();
@@ -280,11 +300,14 @@ const PlayerScreen: React.FC = () => {
         transparent={true}
         animationType="slide"
         onRequestClose={() => setShowQualityModal(false)}>
-        <TouchableOpacity 
-          style={styles.modalOverlay} 
-          activeOpacity={1} 
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
           onPress={() => setShowQualityModal(false)}>
-          <View style={[styles.modalContent, { backgroundColor: colors.CARD, borderRadius: radii.md }]}>
+          <TouchableOpacity
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+            style={[styles.modalContent, { backgroundColor: colors.CARD, borderRadius: radii.md }]}>
             <ThemedText variant="h2" style={{ marginBottom: spacing.md }}>Select Quality</ThemedText>
             <FlatList
               data={sourcesResponse?.sources || []}
@@ -310,7 +333,7 @@ const PlayerScreen: React.FC = () => {
                 </TouchableOpacity>
               )}
             />
-          </View>
+          </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
     </ThemedView>

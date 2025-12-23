@@ -243,8 +243,9 @@ export async function fetchSources(
     }
 
     if (response && typeof response === 'object' && 'sources' in response && Array.isArray(response.sources)) {
-      const sources = response.sources.map(source => mapToSource(source as unknown as Record<string, unknown>));
-      const subtitles = (response as any).subtitles;
+      const typedResponse = response as SourcesResponse;
+      const sources = typedResponse.sources.map(source => mapToSource(source as unknown as Record<string, unknown>));
+      const { subtitles } = typedResponse;
       return { sources, subtitles };
     }
 
