@@ -34,9 +34,9 @@ jest.mock('../api/pstream', () => ({
 
 // Mock Video component
 jest.mock('react-native-video', () => {
-  const React = require('react');
+  const MockReact = require('react');
   const { View } = require('react-native');
-  return React.forwardRef((props: any, ref: any) => {
+  return MockReact.forwardRef((props: any, _ref: any) => {
     return <View testID="video-player" {...props} />;
   });
 });
@@ -62,7 +62,7 @@ describe('PlayerScreen', () => {
 
     // Wait for loading to finish
     await waitFor(() => {
-      expect(screen.getByTestID('video-player')).toBeTruthy();
+      expect(screen.getByTestId('video-player')).toBeTruthy();
     });
 
     // Check title
@@ -76,7 +76,7 @@ describe('PlayerScreen', () => {
     const screen = createTestWrapper(<PlayerScreen />);
 
     await waitFor(() => {
-      expect(screen.getByTestID('video-player')).toBeTruthy();
+      expect(screen.getByTestId('video-player')).toBeTruthy();
     });
 
     const qualityButton = screen.getByText('⚙ Quality');

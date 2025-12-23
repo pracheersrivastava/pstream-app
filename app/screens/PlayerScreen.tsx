@@ -108,7 +108,12 @@ const PlayerScreen: React.FC = () => {
       setError('No sources available');
     }
   }, [sourcesResponse]);
-(sub.language && sub.language.length === 2 ? sub.language : 'en') as ISO639_1,
+
+  const textTracks = React.useMemo(() => {
+    if (!sourcesResponse?.subtitles) return undefined;
+    return sourcesResponse.subtitles.map((sub) => ({
+      title: sub.label,
+      language: (sub.language && sub.language.length === 2 ? sub.language : 'en') as ISO639_1,
       type: TextTrackType.VTT, // Assuming VTT for now, or check extension
       uri: sub.url,
     }));
@@ -121,11 +126,6 @@ const PlayerScreen: React.FC = () => {
       videoRef.current?.seek(seekOnLoad.current);
       seekOnLoad.current = null;
     }
-  }, [sourcesResponse]);
-
-  const handleLoad = (data: OnLoadData) => {
-    setDuration(data.duration);
-    setIsLoading(false);
   };
 
   const handleProgress = (data: OnProgressData) => {
@@ -136,11 +136,11 @@ const PlayerScreen: React.FC = () => {
     console.error('Video Error:', videoError);
     // Try next source if available
     const sources = sourcesResponse?.sources;
-    if (souIsLoading(true);
-        setrces && currentSource) {
+    if (sources && currentSource) {
       const currentIndex = sources.indexOf(currentSource);
       if (currentIndex < sources.length - 1) {
         console.log('Switching to next source...');
+        setIsLoading(true);
         setCurrentSource(sources[currentIndex + 1]);
       } else {
         setError('Playback failed for all sources');
@@ -174,7 +174,7 @@ const PlayerScreen: React.FC = () => {
     return (
       <ThemedView variant="background" style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.PRIMARY} />
-        <ThemedText style={{  || (!isSourcesLoading && sourcesResponse && !currentSource)marginTop: spacing.md }}>Loading sources...</ThemedText>
+        <ThemedText style={{ marginTop: spacing.md }}>Loading sources...</ThemedText>
       </ThemedView>
     );
   }
@@ -329,7 +329,8 @@ const PlayerScreen: React.FC = () => {
                     styles.qualityOption,
                     // eslint-disable-next-line react-native/no-inline-styles
                     {
-                      borderBottomColor: colors.MUTE?.url === item.url ? colors.SURFACE : 'transparent',
+                      borderBottomColor: colors.MUTED,
+                      backgroundColor: currentSource?.url === item.url ? colors.SURFACE : 'transparent',
                     },
                   ]}
                   onPress={() => {
@@ -340,8 +341,7 @@ const PlayerScreen: React.FC = () => {
                   <ThemedText>
                     {item.quality} ({item.provider})
                   </ThemedText>
-                  {currentSource?.url === item.url
-                  {currentSource === item && <ThemedText color="primary">✓</ThemedText>}
+                  {currentSource?.url === item.url && <ThemedText color="primary">✓</ThemedText>}
                 </TouchableOpacity>
               )}
             />
