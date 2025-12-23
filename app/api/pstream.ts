@@ -224,7 +224,7 @@ export async function fetchDetails(id: string): Promise<MediaItem> {
  *
  * @param tmdbId - TMDB ID of the media
  * @param mediaType - 'movie' or 'tv' (defaults to 'movie')
- * @returns Array of available Source objects
+ * @returns SourcesResponse object containing sources and subtitles
  */
 export async function fetchSources(
   tmdbId: string,
