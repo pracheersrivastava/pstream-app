@@ -53,6 +53,7 @@ const PlayerScreen: React.FC = () => {
   const { colors, spacing, radii } = useTheme();
 
   const videoRef = useRef<VideoRef>(null);
+  const seekOnLoad = useRef<number | null>(null);
   const [currentSource, setCurrentSource] = useState<Source | null>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [showControls, setShowControls] = useState(true);
@@ -86,7 +87,12 @@ const PlayerScreen: React.FC = () => {
       const sorted = hlsSources.sort((a, b) => {
         if (a.quality === 'auto') return -1;
         if (b.quality === 'auto') return 1;
-        return parseInt(b.quality, 10) - parseInt(a.quality, 10);
+        const qA = parseInt(a.quality, 10);
+        const qB = parseInt(b.quality, 10);
+        if (isNaN(qA) && isNaN(qB)) return 0;
+        if (isNaN(qA)) return 1;
+        if (isNaN(qB)) return -1;
+        return qB - qA;
       });
 
       // 3. Pick best or fallback to first available
@@ -102,15 +108,19 @@ const PlayerScreen: React.FC = () => {
       setError('No sources available');
     }
   }, [sourcesResponse]);
-
-  const textTracks = React.useMemo(() => {
-    if (!sourcesResponse?.subtitles) return undefined;
-    return sourcesResponse.subtitles.map((sub) => ({
-      title: sub.label,
-      language: sub.language as ISO639_1,
+(sub.language && sub.language.length === 2 ? sub.language : 'en') as ISO639_1,
       type: TextTrackType.VTT, // Assuming VTT for now, or check extension
       uri: sub.url,
     }));
+  }, [sourcesResponse]);
+
+  const handleLoad = (data: OnLoadData) => {
+    setDuration(data.duration);
+    setIsLoading(false);
+    if (seekOnLoad.current !== null) {
+      videoRef.current?.seek(seekOnLoad.current);
+      seekOnLoad.current = null;
+    }
   }, [sourcesResponse]);
 
   const handleLoad = (data: OnLoadData) => {
@@ -126,7 +136,8 @@ const PlayerScreen: React.FC = () => {
     console.error('Video Error:', videoError);
     // Try next source if available
     const sources = sourcesResponse?.sources;
-    if (sources && currentSource) {
+    if (souIsLoading(true);
+        setrces && currentSource) {
       const currentIndex = sources.indexOf(currentSource);
       if (currentIndex < sources.length - 1) {
         console.log('Switching to next source...');
@@ -163,7 +174,7 @@ const PlayerScreen: React.FC = () => {
     return (
       <ThemedView variant="background" style={styles.centerContainer}>
         <ActivityIndicator size="large" color={colors.PRIMARY} />
-        <ThemedText style={{ marginTop: spacing.md }}>Loading sources...</ThemedText>
+        <ThemedText style={{  || (!isSourcesLoading && sourcesResponse && !currentSource)marginTop: spacing.md }}>Loading sources...</ThemedText>
       </ThemedView>
     );
   }
@@ -318,17 +329,18 @@ const PlayerScreen: React.FC = () => {
                     styles.qualityOption,
                     // eslint-disable-next-line react-native/no-inline-styles
                     {
-                      borderBottomColor: colors.MUTED,
-                      backgroundColor: currentSource === item ? colors.SURFACE : 'transparent',
+                      borderBottomColor: colors.MUTE?.url === item.url ? colors.SURFACE : 'transparent',
                     },
                   ]}
                   onPress={() => {
+                    seekOnLoad.current = progress;
                     setCurrentSource(item);
                     setShowQualityModal(false);
                   }}>
                   <ThemedText>
                     {item.quality} ({item.provider})
                   </ThemedText>
+                  {currentSource?.url === item.url
                   {currentSource === item && <ThemedText color="primary">✓</ThemedText>}
                 </TouchableOpacity>
               )}
