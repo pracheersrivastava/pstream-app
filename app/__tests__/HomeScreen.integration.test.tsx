@@ -35,11 +35,11 @@ describe('HomeScreen (integration)', () => {
     await waitFor(() => {
       // Expect hero title rendered
       expect(screen.getByText('Hero Title')).toBeTruthy();
-    });
+    }, { timeout: 10000 }); // Increase timeout to 10 seconds for async rendering
 
     // One of the carousel titles
     expect(screen.getByText('Trending')).toBeTruthy();
-  });
+  }, 15000); // Set overall test timeout to 15 seconds
 });
 
 

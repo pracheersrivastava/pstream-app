@@ -52,8 +52,8 @@ describe('API Client', () => {
 
   describe('Base URL Configuration', () => {
     it('uses the proxy URL (port 3003) as base URL', () => {
-      expect(BASE_API_URL).toBe('http://129.159.231.53:3003');
-      expect(getBaseApiUrl()).toBe('http://129.159.231.53:3003');
+      expect(BASE_API_URL).toBe('http://10.0.2.2:3003');
+      expect(getBaseApiUrl()).toBe('http://10.0.2.2:3003');
     });
 
     it('creates axios instance with proxy base URL', () => {
@@ -61,7 +61,7 @@ describe('API Client', () => {
 
       expect(mockedAxios.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          baseURL: 'http://129.159.231.53:3003',
+          baseURL: 'http://10.0.2.2:3003',
         }),
       );
     });
@@ -80,17 +80,17 @@ describe('API Client', () => {
   describe('Network Guard - assertNotBackendPort (SECURITY-CRITICAL)', () => {
     describe('should BLOCK requests to port 3000 (backend)', () => {
       const forbiddenUrls = [
-        'http://129.159.231.53:3000/home',
-        'http://129.159.231.53:3000/search?q=test',
-        'http://129.159.231.53:3000/catalog/123',
-        'http://129.159.231.53:3000/sources',
+        'http://10.0.2.2:3000/home',
+        'http://10.0.2.2:3000/search?q=test',
+        'http://10.0.2.2:3000/catalog/123',
+        'http://10.0.2.2:3000/sources',
         'http://localhost:3000/api',
         'http://127.0.0.1:3000/backend/home',
-        'https://129.159.231.53:3000/secure',
+        'https://10.0.2.2:3000/secure',
         'http://example.com:3000/test',
         // Edge cases
-        'http://129.159.231.53:3000',
-        'http://129.159.231.53:3000/',
+        'http://10.0.2.2:3000',
+        'http://10.0.2.2:3000/',
       ];
 
       forbiddenUrls.forEach((url) => {
@@ -105,10 +105,10 @@ describe('API Client', () => {
 
     describe('should ALLOW requests to port 3003 (proxy)', () => {
       const allowedUrls = [
-        'http://129.159.231.53:3003/home',
-        'http://129.159.231.53:3003/search?q=test',
-        'http://129.159.231.53:3003/catalog/123',
-        'http://129.159.231.53:3003/sources',
+        'http://10.0.2.2:3003/home',
+        'http://10.0.2.2:3003/search?q=test',
+        'http://10.0.2.2:3003/catalog/123',
+        'http://10.0.2.2:3003/sources',
         '/home',
         '/search',
         '/catalog/123',
@@ -158,7 +158,7 @@ describe('API Client', () => {
       if (requestInterceptor) {
         // Valid proxy request should pass
         const validConfig = {
-          baseURL: 'http://129.159.231.53:3003',
+          baseURL: 'http://10.0.2.2:3003',
           url: '/home',
           headers: { set: jest.fn() },
           method: 'get',
@@ -169,7 +169,7 @@ describe('API Client', () => {
 
         // Invalid backend request should throw
         const invalidConfig = {
-          baseURL: 'http://129.159.231.53:3000',
+          baseURL: 'http://10.0.2.2:3000',
           url: '/home',
           headers: { set: jest.fn() },
           method: 'get',
@@ -189,7 +189,7 @@ describe('API Client', () => {
 
       if (requestInterceptor) {
         const mockConfig = {
-          baseURL: 'http://129.159.231.53:3003',
+          baseURL: 'http://10.0.2.2:3003',
           url: '/home',
           headers: { set: jest.fn() },
           method: 'get',
