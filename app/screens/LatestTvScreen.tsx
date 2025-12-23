@@ -1,6 +1,5 @@
 import React, { useCallback } from 'react';
 import {
-  View,
   StyleSheet,
   FlatList,
   RefreshControl,

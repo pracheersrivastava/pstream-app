@@ -14,6 +14,13 @@ import {
 } from '../api/client';
 import { BASE_API_URL, CLIENT_IDENTIFIER, FORBIDDEN_BACKEND_PORT } from '../config/defaults';
 
+// Mock config/env
+jest.mock('../config/env', () => ({
+  getCurrentInstance: jest.fn(),
+}));
+import { getCurrentInstance } from '../config/env';
+const mockedGetCurrentInstance = getCurrentInstance as jest.Mock;
+
 // Mock axios
 jest.mock('axios', () => {
   const mockAxiosInstance = {
@@ -48,12 +55,14 @@ const mockedAxios = axios as jest.Mocked<typeof axios>;
 describe('API Client', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Default safe mock
+    mockedGetCurrentInstance.mockResolvedValue('http://129.159.231.53:3003');
   });
 
   describe('Base URL Configuration', () => {
     it('uses the proxy URL (port 3003) as base URL', () => {
-      expect(BASE_API_URL).toBe('http://10.0.2.2:3003');
-      expect(getBaseApiUrl()).toBe('http://10.0.2.2:3003');
+      expect(BASE_API_URL).toBe('http://129.159.231.53:3003');
+      expect(getBaseApiUrl()).toBe('http://129.159.231.53:3003');
     });
 
     it('creates axios instance with proxy base URL', () => {
@@ -61,7 +70,7 @@ describe('API Client', () => {
 
       expect(mockedAxios.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          baseURL: 'http://10.0.2.2:3003',
+          baseURL: 'http://129.159.231.53:3003',
         }),
       );
     });
@@ -157,8 +166,9 @@ describe('API Client', () => {
 
       if (requestInterceptor) {
         // Valid proxy request should pass
+        mockedGetCurrentInstance.mockResolvedValue('http://129.159.231.53:3003');
         const validConfig = {
-          baseURL: 'http://10.0.2.2:3003',
+          baseURL: 'http://129.159.231.53:3003',
           url: '/home',
           headers: { set: jest.fn() },
           method: 'get',
@@ -168,6 +178,8 @@ describe('API Client', () => {
         expect(result).toBe(validConfig);
 
         // Invalid backend request should throw
+        // We mock getCurrentInstance to return the malicious URL, simulating a compromised storage
+        mockedGetCurrentInstance.mockResolvedValue('http://10.0.2.2:3000');
         const invalidConfig = {
           baseURL: 'http://10.0.2.2:3000',
           url: '/home',
