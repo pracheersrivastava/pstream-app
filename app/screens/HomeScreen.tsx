@@ -120,8 +120,14 @@ const HomeScreen: React.FC = () => {
         queryFn: () => fetchSources(heroItem.tmdbId!),
         staleTime: 5 * 60 * 1000,
       });
+      
+      navigation.navigate('Player', {
+        tmdbId: heroItem.tmdbId,
+        type: heroItem.type === 'tv' ? 'tv' : 'movie',
+        title: heroItem.title,
+        poster: heroItem.poster || undefined,
+      });
     }
-    navigation.navigate('Player');
   }, [heroItem, navigation, queryClient]);
 
   const renderHero = useCallback(() => {

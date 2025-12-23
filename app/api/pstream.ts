@@ -229,7 +229,7 @@ export async function fetchDetails(id: string): Promise<MediaItem> {
 export async function fetchSources(
   tmdbId: string,
   mediaType: 'movie' | 'tv' = 'movie',
-): Promise<Source[]> {
+): Promise<SourcesResponse> {
   try {
     // Fetch from proxy: GET /sources?tmdbId=...&type=...
     const response = await get<SourcesResponse | unknown[]>('/sources', {
@@ -239,17 +239,19 @@ export async function fetchSources(
 
     // Handle different response formats
     if (Array.isArray(response)) {
-      return response.map(source => mapToSource(source as Record<string, unknown>));
+      return { sources: response.map(source => mapToSource(source as Record<string, unknown>)) };
     }
 
     if (response && typeof response === 'object' && 'sources' in response && Array.isArray(response.sources)) {
-      return response.sources.map(source => mapToSource(source as unknown as Record<string, unknown>));
+      const sources = response.sources.map(source => mapToSource(source as unknown as Record<string, unknown>));
+      const subtitles = (response as any).subtitles;
+      return { sources, subtitles };
     }
 
     if (__DEV__) {
       console.warn('[PStream] Unexpected sources response format');
     }
-    return [];
+    return { sources: [] };
   } catch (error) {
     if (__DEV__) {
       console.error('[PStream] fetchSources error:', error);
